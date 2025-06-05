@@ -1,70 +1,138 @@
 import { LOD_LEVELS } from './constants'
-import type { WebGLImageViewerProps } from './interface'
-import { createShader, FRAGMENT_SHADER_SOURCE, VERTEX_SHADER_SOURCE  } from './shaders'
+import type { DebugInfo, MemoryInfo, WebGLImageViewerProps } from './interface'
+import {
+  createShader,
+  FRAGMENT_SHADER_SOURCE,
+  VERTEX_SHADER_SOURCE,
+} from './shaders'
 
-// WebGL Image Viewer implementation class
+// 性能监控接口
+interface PerformanceInfo {
+  fps: number
+  frameTime: number
+  gpuTime: number
+  renderCalls: number
+}
+
+// 纹理信息接口
+interface TextureInfo {
+  texture: WebGLTexture
+  width: number
+  height: number
+  memory: number
+  lastUsed: number
+}
+
+// 渲染状态 (暂时保留用于未来扩展)
+interface _RenderState {
+  scale: number
+  translateX: number
+  translateY: number
+  targetLOD: number
+  isReady: boolean
+}
+
+// Web Worker 消息类型 (暂时保留用于未来扩展)
+interface _WorkerMessage {
+  type: 'createTexture' | 'textureReady' | 'error' | 'memoryUpdate'
+  data: any
+}
+
+/**
+ * 高性能 WebGL 图像查看器引擎
+ * 使用 OffscreenCanvas 双缓冲和内存管理优化
+ */
 export class WebGLImageViewerEngine {
   private canvas: HTMLCanvasElement
   private gl: WebGLRenderingContext
+  private offscreenCanvas: OffscreenCanvas | null = null
+  private offscreenGL: WebGLRenderingContext | null = null
   private program!: WebGLProgram
-  private texture: WebGLTexture | null = null
-  private imageLoaded = false
-  private originalImageSrc = ''
+  private offscreenProgram!: WebGLProgram
 
-  // Transform state
-  private scale = 1
-  private translateX = 0
-  private translateY = 0
+  // 双缓冲纹理
+  private frontTexture: WebGLTexture | null = null
+  private backTexture: WebGLTexture | null = null
+  private isBackBufferReady = false
+
+  // 图像和状态
+  private originalImageSrc = ''
   private imageWidth = 0
   private imageHeight = 0
   private canvasWidth = 0
   private canvasHeight = 0
+  private imageLoaded = false
 
-  // Interaction state
+  // 变换状态
+  private scale = 1
+  private translateX = 0
+  private translateY = 0
+  private targetScale = 1
+  private targetTranslateX = 0
+  private targetTranslateY = 0
+
+  // 交互状态
   private isDragging = false
   private lastMouseX = 0
   private lastMouseY = 0
   private lastTouchDistance = 0
-  private lastDoubleClickTime = 0
   private isOriginalSize = false
-
-  // Touch double-tap detection
+  private lastDoubleClickTime = 0
   private lastTouchTime = 0
   private lastTouchX = 0
   private lastTouchY = 0
   private touchTapTimeout: ReturnType<typeof setTimeout> | null = null
 
-  // Animation state
+  // 动画状态
   private isAnimating = false
   private animationStartTime = 0
-  private animationDuration = 300 // ms
+  private animationDuration = 300
   private startScale = 1
-  private targetScale = 1
   private startTranslateX = 0
   private startTranslateY = 0
-  private targetTranslateX = 0
-  private targetTranslateY = 0
 
-  // Throttle state for render
-  private renderThrottleId: number | null = null
-  private lastRenderTime = 0
-  private renderThrottleDelay = 16 // ~60fps
-
-  // LOD (Level of Detail) texture management
-  private originalImage: HTMLImageElement | null = null
-  private lodTextures = new Map<number, WebGLTexture>() // LOD level -> texture
+  // LOD 和纹理管理
   private currentLOD = 0
-  private lodUpdateDebounceId: ReturnType<typeof setTimeout> | null = null
-  private lodUpdateDelay = 200 // ms
-  private maxTextureSize = 0 // WebGL maximum texture size
+  private lodTextures = new Map<number, TextureInfo>()
+  private texturePool = new Set<WebGLTexture>()
+  private maxTextureSize = 0
+  private textureMemoryLimit = 0
 
-  // Configuration
+  // 内存和性能监控
+  private memoryInfo: MemoryInfo = {
+    usedMemory: 0,
+    totalMemory: 0,
+    textureMemory: 0,
+    pressure: 'low',
+  }
+  private performanceInfo: PerformanceInfo = {
+    fps: 60,
+    frameTime: 16.67,
+    gpuTime: 0,
+    renderCalls: 0,
+  }
+
+  // Web Worker 相关
+  private textureWorker: Worker | null = null
+  private pendingTextureRequests = new Map<
+    string,
+    (texture: WebGLTexture) => void
+  >()
+
+  // 渲染控制
+  private renderLoop: number | null = null
+  private lastFrameTime = 0
+  private frameCount = 0
+  private lastFPSUpdate = 0
+  private lodUpdateDebounceId: ReturnType<typeof setTimeout> | null = null
+
+  // 配置和回调
   private config: Required<WebGLImageViewerProps>
   private onZoomChange?: (originalScale: number, relativeScale: number) => void
   private onImageCopied?: () => void
-  private onDebugUpdate?: React.RefObject<(debugInfo: any) => void>
+  private onDebugUpdate?: React.RefObject<(debugInfo: DebugInfo) => void>
 
-  // Bound event handlers for proper cleanup
+  // 绑定的事件处理器
   private boundHandleMouseDown: (e: MouseEvent) => void
   private boundHandleMouseMove: (e: MouseEvent) => void
   private boundHandleMouseUp: () => void
@@ -86,40 +154,26 @@ export class WebGLImageViewerEngine {
     this.onImageCopied = config.onImageCopied
     this.onDebugUpdate = onDebugUpdate
 
+    // 初始化 WebGL 上下文
     const gl = canvas.getContext('webgl', {
       alpha: true,
       premultipliedAlpha: false,
-      antialias: true,
+      antialias: false, // 关闭抗锯齿以提高性能
       powerPreference: 'high-performance',
-      failIfMajorPerformanceCaveat: false, // 允许软件渲染作为后备
+      failIfMajorPerformanceCaveat: false,
+      preserveDrawingBuffer: false, // 不保留绘图缓冲区以节省内存
     })
+
     if (!gl) {
       throw new Error('WebGL not supported')
     }
     this.gl = gl
 
-    // 获取 WebGL 最大纹理尺寸
+    // 获取系统限制
     this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+    this.calculateMemoryLimits()
 
-    // 在移动设备上记录一些有用的调试信息
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      console.info('WebGL Image Viewer - Mobile device detected')
-      console.info('Max texture size:', this.maxTextureSize)
-      console.info('Device pixel ratio:', window.devicePixelRatio || 1)
-      console.info(
-        'Screen size:',
-        window.screen.width,
-        'x',
-        window.screen.height,
-      )
-      console.info('WebGL renderer:', gl.getParameter(gl.RENDERER))
-      console.info('WebGL vendor:', gl.getParameter(gl.VENDOR))
-    }
-
-    // 初始缩放将在图片加载时正确设置，这里先保持默认值
-    // this.scale = config.initialScale
-
-    // Bind event handlers for proper cleanup
+    // 绑定事件处理器
     this.boundHandleMouseDown = (e: MouseEvent) => this.handleMouseDown(e)
     this.boundHandleMouseMove = (e: MouseEvent) => this.handleMouseMove(e)
     this.boundHandleMouseUp = () => this.handleMouseUp()
@@ -130,9 +184,95 @@ export class WebGLImageViewerEngine {
     this.boundHandleTouchEnd = (e: TouchEvent) => this.handleTouchEnd(e)
     this.boundResizeCanvas = () => this.resizeCanvas()
 
+    // 同步初始化关键组件
     this.setupCanvas()
     this.initWebGL()
+
+    // 立即进行一次渲染测试
+    gl.clearColor(0.2, 0.2, 0.2, 1) // 灰色背景，确认WebGL工作
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
     this.setupEventListeners()
+    this.startRenderLoop()
+    this.startMemoryMonitoring()
+
+    // 异步初始化 OffscreenCanvas
+    this.setupOffscreenCanvas().catch((error) => {
+      console.warn('OffscreenCanvas setup failed:', error)
+    })
+
+    console.info('WebGL Image Viewer Engine initialized')
+    console.info('Max texture size:', this.maxTextureSize)
+    console.info(
+      'Texture memory limit:',
+      Math.round(this.textureMemoryLimit / 1024 / 1024),
+      'MB',
+    )
+    console.info('Canvas size:', `${this.canvas.width}x${this.canvas.height}`)
+    console.info('Canvas CSS size:', `${this.canvasWidth}x${this.canvasHeight}`)
+  }
+
+  private async setupOffscreenCanvas() {
+    try {
+      // 尝试创建 OffscreenCanvas
+      if (typeof OffscreenCanvas !== 'undefined') {
+        this.offscreenCanvas = new OffscreenCanvas(1024, 1024)
+        const offscreenGL = this.offscreenCanvas.getContext('webgl', {
+          alpha: true,
+          premultipliedAlpha: false,
+          antialias: false,
+          powerPreference: 'high-performance',
+          preserveDrawingBuffer: false,
+        })
+
+        if (offscreenGL) {
+          this.offscreenGL = offscreenGL as WebGLRenderingContext
+          this.initOffscreenWebGL()
+          console.info('OffscreenCanvas initialized successfully')
+        } else {
+          console.warn(
+            'Failed to get OffscreenCanvas WebGL context, falling back to main thread',
+          )
+        }
+      } else {
+        console.warn(
+          'OffscreenCanvas not supported, falling back to main thread',
+        )
+      }
+    } catch (error) {
+      console.warn('OffscreenCanvas setup failed:', error)
+    }
+  }
+
+  private calculateMemoryLimits() {
+    // 估算可用内存
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    const devicePixelRatio = window.devicePixelRatio || 1
+
+    // 基于设备类型和屏幕分辨率估算内存限制
+    let baseMemoryLimit: number
+
+    if (isMobile) {
+      // 移动设备内存限制更严格
+      if (devicePixelRatio >= 3) {
+        baseMemoryLimit = 256 * 1024 * 1024 // 256MB for high-DPI mobile
+      } else {
+        baseMemoryLimit = 128 * 1024 * 1024 // 128MB for normal mobile
+      }
+    } else {
+      // 桌面设备
+      baseMemoryLimit = 512 * 1024 * 1024 // 512MB for desktop
+    }
+
+    // 为纹理分配总内存的 60%
+    this.textureMemoryLimit = Math.floor(baseMemoryLimit * 0.6)
+
+    console.info(
+      `Device: ${isMobile ? 'Mobile' : 'Desktop'}, DPR: ${devicePixelRatio}`,
+    )
+    console.info(
+      `Memory limit: ${Math.round(this.textureMemoryLimit / 1024 / 1024)}MB`,
+    )
   }
 
   private setupCanvas() {
@@ -144,33 +284,84 @@ export class WebGLImageViewerEngine {
     const rect = this.canvas.getBoundingClientRect()
     const devicePixelRatio = window.devicePixelRatio || 1
 
-    // 使用设备像素比来提高清晰度，特别是在高 DPI 屏幕上
     this.canvasWidth = rect.width
     this.canvasHeight = rect.height
 
-    // 设置实际的 canvas 像素尺寸，考虑设备像素比
-    const actualWidth = Math.round(rect.width * devicePixelRatio)
-    const actualHeight = Math.round(rect.height * devicePixelRatio)
+    // 根据内存压力动态调整像素比
+    const effectivePixelRatio = this.getEffectivePixelRatio(devicePixelRatio)
 
+    const actualWidth = Math.round(rect.width * effectivePixelRatio)
+    const actualHeight = Math.round(rect.height * effectivePixelRatio)
+
+    // 设置canvas的实际像素尺寸
     this.canvas.width = actualWidth
     this.canvas.height = actualHeight
+
+    // 设置canvas的CSS显示尺寸
+    this.canvas.style.width = `${rect.width}px`
+    this.canvas.style.height = `${rect.height}px`
+
     this.gl.viewport(0, 0, actualWidth, actualHeight)
 
+    // 同步 OffscreenCanvas 尺寸
+    if (this.offscreenCanvas && this.offscreenGL) {
+      this.offscreenCanvas.width = actualWidth
+      this.offscreenCanvas.height = actualHeight
+      this.offscreenGL.viewport(0, 0, actualWidth, actualHeight)
+    }
+
     if (this.imageLoaded) {
-      // 窗口大小改变时，需要重新约束缩放倍数和位置
       this.constrainScaleAndPosition()
-      this.render()
-      // canvas 尺寸变化时也需要检查 LOD 更新
-      this.debouncedLODUpdate()
-      // 通知缩放变化
+      this.updateLODIfNeeded()
       this.notifyZoomChange()
+    }
+  }
+
+  private getEffectivePixelRatio(basePixelRatio: number): number {
+    switch (this.memoryInfo.pressure) {
+      case 'critical': {
+        return Math.min(basePixelRatio, 1)
+      } // 最低质量
+      case 'high': {
+        return Math.min(basePixelRatio, 1.5)
+      } // 中等质量
+      case 'medium': {
+        return Math.min(basePixelRatio, 2)
+      } // 较高质量
+      default: {
+        return basePixelRatio
+      } // 最高质量
     }
   }
 
   private initWebGL() {
     const { gl } = this
 
-    // Create shaders
+    try {
+      this.program = this.createShaderProgram(gl)
+      this.setupGeometry(gl, this.program)
+
+      // 检查 WebGL 错误
+      const error = gl.getError()
+      if (error !== gl.NO_ERROR) {
+        console.error('WebGL error during initialization:', error)
+      } else {
+        console.info('WebGL initialized successfully')
+      }
+    } catch (error) {
+      console.error('Failed to initialize WebGL:', error)
+      throw error
+    }
+  }
+
+  private initOffscreenWebGL() {
+    if (!this.offscreenGL) return
+
+    this.offscreenProgram = this.createShaderProgram(this.offscreenGL)
+    this.setupGeometry(this.offscreenGL, this.offscreenProgram)
+  }
+
+  private createShaderProgram(gl: WebGLRenderingContext): WebGLProgram {
     const vertexShader = createShader(
       gl,
       gl.VERTEX_SHADER,
@@ -182,29 +373,28 @@ export class WebGLImageViewerEngine {
       FRAGMENT_SHADER_SOURCE,
     )
 
-    // Create program
-    this.program = gl.createProgram()!
-    gl.attachShader(this.program, vertexShader)
-    gl.attachShader(this.program, fragmentShader)
-    gl.linkProgram(this.program)
+    const program = gl.createProgram()!
+    gl.attachShader(program, vertexShader)
+    gl.attachShader(program, fragmentShader)
+    gl.linkProgram(program)
 
-    if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       throw new Error(
-        `Program linking failed: ${gl.getProgramInfoLog(this.program)}`,
+        `Program linking failed: ${gl.getProgramInfoLog(program)}`,
       )
     }
 
-    gl.useProgram(this.program)
-
-    // Enable blending for transparency
+    gl.useProgram(program)
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-    // Create geometry (quad that will be transformed to image size)
+    return program
+  }
+
+  private setupGeometry(gl: WebGLRenderingContext, program: WebGLProgram) {
     const positions = new Float32Array([
       -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
     ])
-
     const texCoords = new Float32Array([0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0])
 
     // Position buffer
@@ -212,7 +402,7 @@ export class WebGLImageViewerEngine {
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
 
-    const positionLocation = gl.getAttribLocation(this.program, 'a_position')
+    const positionLocation = gl.getAttribLocation(program, 'a_position')
     gl.enableVertexAttribArray(positionLocation)
     gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
 
@@ -221,394 +411,639 @@ export class WebGLImageViewerEngine {
     gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW)
 
-    const texCoordLocation = gl.getAttribLocation(this.program, 'a_texCoord')
+    const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord')
     gl.enableVertexAttribArray(texCoordLocation)
     gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0)
   }
 
   async loadImage(url: string) {
     this.originalImageSrc = url
-    const image = new Image()
-    image.crossOrigin = 'anonymous'
 
-    return new Promise<void>((resolve, reject) => {
-      image.onload = () => {
-        this.imageWidth = image.width
-        this.imageHeight = image.height
+    try {
+      console.info('Loading image:', url)
+      const image = await this.loadImageAsync(url)
+      this.imageWidth = image.width
+      this.imageHeight = image.height
 
-        // 先设置正确的缩放值，再创建纹理
-        if (this.config.centerOnInit) {
-          this.fitImageToScreen()
-        } else {
-          // 即使不居中，也需要将相对缩放转换为绝对缩放
-          const fitToScreenScale = this.getFitToScreenScale()
-          this.scale = fitToScreenScale * this.config.initialScale
-        }
-
-        this.createTexture(image)
-        this.imageLoaded = true
-        this.render()
-        this.notifyZoomChange() // 通知初始缩放值
-        resolve()
+      if (this.config.centerOnInit) {
+        this.fitImageToScreen()
+      } else {
+        const fitToScreenScale = this.getFitToScreenScale()
+        this.scale = fitToScreenScale * this.config.initialScale
       }
 
+      console.info('Creating initial texture...')
+      await this.createInitialTexture(image)
+      this.imageLoaded = true
+
+      console.info('Image loaded and texture created successfully')
+      console.info(`Image size: ${this.imageWidth}×${this.imageHeight}`)
+      console.info(`Canvas size: ${this.canvasWidth}×${this.canvasHeight}`)
+      console.info(`Scale: ${this.scale}`)
+      console.info(`Front texture:`, this.frontTexture)
+
+      this.updateLODIfNeeded()
+      this.notifyZoomChange()
+    } catch (error) {
+      console.error('Failed to load image:', error)
+      throw error
+    }
+  }
+
+  private loadImageAsync(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image()
+      image.crossOrigin = 'anonymous'
+      image.onload = () => resolve(image)
       image.onerror = () => reject(new Error('Failed to load image'))
       image.src = url
     })
   }
 
-  private createTexture(image: HTMLImageElement) {
-    this.originalImage = image
-    this.initializeLODTextures()
-  }
+  private async createInitialTexture(image: HTMLImageElement) {
+    // 创建初始纹理（适应屏幕大小的质量）
+    const optimalLOD = this.selectOptimalLOD()
+    console.info(`Creating initial texture at LOD ${optimalLOD}`)
 
-  private initializeLODTextures() {
-    if (!this.originalImage) return
-
-    // 清理现有的 LOD 纹理
-    this.cleanupLODTextures()
-
-    // 创建基础 LOD 纹理（LOD 3: 原始分辨率）
-    this.createLODTexture(3)
-    this.currentLOD = 3
-    this.texture = this.lodTextures.get(3) || null
-  }
-
-  private createLODTexture(lodLevel: number): WebGLTexture | null {
-    if (!this.originalImage || lodLevel < 0 || lodLevel >= LOD_LEVELS.length) {
-      return null
+    const texture = await this.createLODTextureAsync(optimalLOD, image)
+    if (texture) {
+      this.currentLOD = optimalLOD
+      this.frontTexture = texture
+      console.info('Initial texture created successfully')
+    } else {
+      console.error(
+        'Failed to create initial texture, falling back to synchronous method',
+      )
+      // 降级到同步方法作为备用
+      const fallbackTexture = this.createTextureMainThread(optimalLOD, image)
+      if (fallbackTexture) {
+        this.currentLOD = optimalLOD
+        this.frontTexture = fallbackTexture
+        console.info('Fallback texture created successfully')
+      } else {
+        throw new Error(
+          'Failed to create texture with both async and sync methods',
+        )
+      }
     }
+  }
 
-    const { gl } = this
-    const lodConfig = LOD_LEVELS[lodLevel]
+  private async createLODTextureAsync(
+    lodLevel: number,
+    sourceImage?: HTMLImageElement,
+  ): Promise<WebGLTexture | null> {
+    if (lodLevel < 0 || lodLevel >= LOD_LEVELS.length) return null
+
+    const image =
+      sourceImage || (await this.loadImageAsync(this.originalImageSrc))
 
     try {
-      // 计算 LOD 纹理尺寸
-      const lodWidth = Math.max(
-        1,
-        Math.round(this.originalImage.width * lodConfig.scale),
-      )
-      const lodHeight = Math.max(
-        1,
-        Math.round(this.originalImage.height * lodConfig.scale),
-      )
-
-      // 动态计算合理的纹理尺寸上限
-      // 对于超高分辨率图片，允许更大的纹理尺寸
-
-      // 基于视口大小和设备像素比动态调整最大纹理尺寸
-      let { maxTextureSize } = this
-
-      // 对于高 LOD 级别，允许更大的纹理尺寸
-      if (lodConfig.scale >= 4) {
-        // 对于 4x 及以上的 LOD，使用更大的纹理尺寸限制
-        maxTextureSize = Math.min(this.maxTextureSize, 16384)
-      } else if (lodConfig.scale >= 2) {
-        // 对于 2x LOD，使用中等纹理尺寸限制
-        maxTextureSize = Math.min(this.maxTextureSize, 8192)
-      } else if (lodConfig.scale >= 1) {
-        // 对于 1x LOD，使用标准纹理尺寸限制
-        maxTextureSize = Math.min(this.maxTextureSize, 8192)
-      } else {
-        // 对于低分辨率 LOD，使用较小的纹理尺寸限制以节省内存
-        maxTextureSize = Math.min(this.maxTextureSize, 4096)
+      // 优先使用 OffscreenCanvas 异步创建
+      if (this.offscreenGL) {
+        console.info(`Creating texture ${lodLevel} using OffscreenCanvas`)
+        const texture = await this.createTextureOffscreen(lodLevel, image)
+        if (texture) {
+          console.info(
+            `OffscreenCanvas texture ${lodLevel} created successfully`,
+          )
+          return texture
+        }
+        console.warn(
+          `OffscreenCanvas texture ${lodLevel} creation failed, falling back to main thread`,
+        )
       }
 
-      // 确保纹理尺寸不超过限制，但优先保持宽高比
-      let finalWidth = lodWidth
-      let finalHeight = lodHeight
+      // 降级到主线程，但使用requestIdleCallback来减少阻塞
+      console.info(
+        `Creating texture ${lodLevel} using main thread with idle callback`,
+      )
+      return await this.createTextureMainThreadAsync(lodLevel, image)
+    } catch (error) {
+      console.error(`Failed to create LOD ${lodLevel} texture:`, error)
+      return null
+    }
+  }
 
-      if (lodWidth > maxTextureSize || lodHeight > maxTextureSize) {
-        const aspectRatio = lodWidth / lodHeight
-        if (aspectRatio > 1) {
-          // 宽图
-          finalWidth = maxTextureSize
-          finalHeight = Math.round(maxTextureSize / aspectRatio)
-        } else {
-          // 高图
-          finalHeight = maxTextureSize
-          finalWidth = Math.round(maxTextureSize * aspectRatio)
+  private async createTextureOffscreen(
+    lodLevel: number,
+    image: HTMLImageElement,
+  ): Promise<WebGLTexture | null> {
+    if (!this.offscreenGL || !this.offscreenCanvas) return null
+
+    const lodConfig = LOD_LEVELS[lodLevel]
+
+    // 计算目标尺寸
+    const targetWidth = Math.max(1, Math.round(image.width * lodConfig.scale))
+    const targetHeight = Math.max(1, Math.round(image.height * lodConfig.scale))
+
+    // 应用内存限制
+    const { width: finalWidth, height: finalHeight } =
+      this.applyMemoryConstraints(targetWidth, targetHeight)
+
+    // 在 OffscreenCanvas 中异步创建纹理
+    return new Promise((resolve) => {
+      // 使用 MessageChannel 来实现真正的异步处理
+      const createTexture = () => {
+        try {
+          // 创建临时 canvas 进行图像处理
+          const tempCanvas = new OffscreenCanvas(finalWidth, finalHeight)
+          const ctx = tempCanvas.getContext('2d')!
+
+          // 设置高质量渲染
+          ctx.imageSmoothingEnabled = true
+          ctx.imageSmoothingQuality = lodConfig.scale >= 1 ? 'high' : 'medium'
+
+          // 绘制图像
+          ctx.drawImage(image, 0, 0, finalWidth, finalHeight)
+
+          // 在主线程WebGL上下文中创建纹理（因为不能跨上下文共享纹理）
+          const texture = this.gl.createTexture()
+          if (!texture) {
+            resolve(null)
+            return
+          }
+
+          this.gl.bindTexture(this.gl.TEXTURE_2D, texture)
+          this.setTextureParameters(this.gl, lodConfig.scale >= 1)
+
+          // 从OffscreenCanvas创建ImageBitmap，然后在主线程上传
+          tempCanvas
+            .convertToBlob()
+            .then((blob) => {
+              createImageBitmap(blob)
+                .then((imageBitmap) => {
+                  this.gl.texImage2D(
+                    this.gl.TEXTURE_2D,
+                    0,
+                    this.gl.RGBA,
+                    this.gl.RGBA,
+                    this.gl.UNSIGNED_BYTE,
+                    imageBitmap,
+                  )
+
+                  // 检查错误
+                  if (this.gl.getError() !== this.gl.NO_ERROR) {
+                    this.gl.deleteTexture(texture)
+                    resolve(null)
+                    return
+                  }
+
+                  // 存储纹理信息
+                  const memoryUsage = finalWidth * finalHeight * 4 // RGBA
+                  this.lodTextures.set(lodLevel, {
+                    texture,
+                    width: finalWidth,
+                    height: finalHeight,
+                    memory: memoryUsage,
+                    lastUsed: Date.now(),
+                  })
+
+                  this.updateMemoryUsage()
+                  resolve(texture)
+                })
+                .catch((error) => {
+                  console.error('Error creating ImageBitmap:', error)
+                  this.gl.deleteTexture(texture)
+                  resolve(null)
+                })
+            })
+            .catch((error) => {
+              console.error('Error converting to blob:', error)
+              this.gl.deleteTexture(texture)
+              resolve(null)
+            })
+        } catch (error) {
+          console.error('Error creating offscreen texture:', error)
+          resolve(null)
         }
       }
 
-      // 创建离屏 canvas
-      const offscreenCanvas = document.createElement('canvas')
-      const offscreenCtx = offscreenCanvas.getContext('2d')!
-
-      offscreenCanvas.width = finalWidth
-      offscreenCanvas.height = finalHeight
-
-      // 根据 LOD 级别选择渲染质量
-      if (lodConfig.scale >= 2) {
-        // 高分辨率 LOD，使用最高质量渲染
-        offscreenCtx.imageSmoothingEnabled = true
-        offscreenCtx.imageSmoothingQuality = 'high'
-      } else if (lodConfig.scale >= 1) {
-        // 原始分辨率 LOD，使用高质量渲染
-        offscreenCtx.imageSmoothingEnabled = true
-        offscreenCtx.imageSmoothingQuality = 'high'
+      // 使用 MessageChannel 来确保异步执行
+      if (typeof MessageChannel !== 'undefined') {
+        const channel = new MessageChannel()
+        channel.port2.onmessage = createTexture
+        channel.port1.postMessage(null)
       } else {
-        // 低分辨率 LOD，使用中等质量渲染以提高性能
-        offscreenCtx.imageSmoothingEnabled = true
-        offscreenCtx.imageSmoothingQuality = 'medium'
+        setTimeout(createTexture, 0)
+      }
+    })
+  }
+
+  private async createTextureMainThreadAsync(
+    lodLevel: number,
+    image: HTMLImageElement,
+  ): Promise<WebGLTexture | null> {
+    return new Promise((resolve) => {
+      const createTexture = () => {
+        try {
+          const texture = this.createTextureMainThread(lodLevel, image)
+          resolve(texture)
+        } catch (error) {
+          console.error('Error in async main thread texture creation:', error)
+          resolve(null)
+        }
       }
 
-      // 绘制图像到目标尺寸
-      offscreenCtx.drawImage(
-        this.originalImage,
-        0,
-        0,
-        this.originalImage.width,
-        this.originalImage.height,
-        0,
-        0,
-        finalWidth,
-        finalHeight,
-      )
+      // 使用 requestIdleCallback 来减少主线程阻塞
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(createTexture, { timeout: 1000 })
+      } else {
+        setTimeout(createTexture, 0)
+      }
+    })
+  }
 
-      // 创建 WebGL 纹理
+  private createTextureMainThread(
+    lodLevel: number,
+    image: HTMLImageElement,
+  ): WebGLTexture | null {
+    const lodConfig = LOD_LEVELS[lodLevel]
+    const { gl } = this
+
+    const targetWidth = Math.max(1, Math.round(image.width * lodConfig.scale))
+    const targetHeight = Math.max(1, Math.round(image.height * lodConfig.scale))
+
+    const { width: finalWidth, height: finalHeight } =
+      this.applyMemoryConstraints(targetWidth, targetHeight)
+
+    try {
+      // 使用更轻量的方法创建纹理
       const texture = gl.createTexture()
-      if (!texture) {
-        console.error(`Failed to create LOD ${lodLevel} texture`)
-        return null
-      }
+      if (!texture) return null
 
       gl.bindTexture(gl.TEXTURE_2D, texture)
+      this.setTextureParameters(gl, lodConfig.scale >= 1)
 
-      // 设置纹理参数
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-
-      // 根据 LOD 级别和图像特性选择过滤方式
-      if (lodConfig.scale >= 4) {
-        // 超高分辨率纹理，使用线性过滤获得最佳质量
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-      } else if (lodConfig.scale >= 1) {
-        // 原始及以上分辨率，根据图像类型选择
-        const isPixelArt =
-          this.originalImage.width < 512 || this.originalImage.height < 512
-        if (isPixelArt) {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-        } else {
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-        }
+      // 直接从图像创建纹理，让 GPU 处理缩放
+      if (finalWidth === image.width && finalHeight === image.height) {
+        // 原始尺寸，直接上传
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          image,
+        )
       } else {
-        // 低分辨率纹理，使用线性过滤避免锯齿
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        // 需要缩放，使用最小的 canvas 处理
+        const canvas = document.createElement('canvas')
+        canvas.width = finalWidth
+        canvas.height = finalHeight
+
+        const ctx = canvas.getContext('2d')!
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'medium' // 平衡质量和性能
+        ctx.drawImage(image, 0, 0, finalWidth, finalHeight)
+
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          canvas,
+        )
       }
 
-      // 上传纹理数据
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        offscreenCanvas,
-      )
-
-      // 检查 WebGL 错误
-      const error = gl.getError()
-      if (error !== gl.NO_ERROR) {
-        console.error(`WebGL error creating LOD ${lodLevel} texture:`, error)
+      if (gl.getError() !== gl.NO_ERROR) {
         gl.deleteTexture(texture)
         return null
       }
 
-      // 存储纹理
-      this.lodTextures.set(lodLevel, texture)
+      const memoryUsage = finalWidth * finalHeight * 4
+      this.lodTextures.set(lodLevel, {
+        texture,
+        width: finalWidth,
+        height: finalHeight,
+        memory: memoryUsage,
+        lastUsed: Date.now(),
+      })
 
-      console.info(
-        `Created LOD ${lodLevel} texture: ${finalWidth}×${finalHeight} (scale: ${lodConfig.scale}, original: ${lodWidth}×${lodHeight})`,
-      )
+      this.updateMemoryUsage()
       return texture
     } catch (error) {
-      console.error(`Error creating LOD ${lodLevel} texture:`, error)
+      console.error('Error creating main thread texture:', error)
       return null
     }
   }
 
-  private cleanupLODTextures() {
-    const { gl } = this
+  private applyMemoryConstraints(
+    width: number,
+    height: number,
+  ): { width: number; height: number } {
+    // 检查单个纹理是否超出内存限制
+    const estimatedMemory = width * height * 4 // RGBA
+    const maxSingleTextureMemory = this.textureMemoryLimit * 0.3 // 单个纹理不超过总限制的 30%
 
-    // 删除所有现有的 LOD 纹理
-    for (const [_level, texture] of this.lodTextures) {
-      gl.deleteTexture(texture)
+    if (estimatedMemory > maxSingleTextureMemory) {
+      const scaleFactor = Math.sqrt(maxSingleTextureMemory / estimatedMemory)
+      return {
+        width: Math.max(1, Math.round(width * scaleFactor)),
+        height: Math.max(1, Math.round(height * scaleFactor)),
+      }
     }
-    this.lodTextures.clear()
 
-    // 清理主纹理引用
-    this.texture = null
+    // 检查 WebGL 最大纹理尺寸
+    const maxSize = this.getEffectiveMaxTextureSize()
+    if (width > maxSize || height > maxSize) {
+      const aspectRatio = width / height
+      if (aspectRatio > 1) {
+        return { width: maxSize, height: Math.round(maxSize / aspectRatio) }
+      } else {
+        return { width: Math.round(maxSize * aspectRatio), height: maxSize }
+      }
+    }
+
+    return { width, height }
+  }
+
+  private getEffectiveMaxTextureSize(): number {
+    // 根据内存压力动态调整最大纹理尺寸
+    switch (this.memoryInfo.pressure) {
+      case 'critical': {
+        return Math.min(this.maxTextureSize, 2048)
+      }
+      case 'high': {
+        return Math.min(this.maxTextureSize, 4096)
+      }
+      case 'medium': {
+        return Math.min(this.maxTextureSize, 8192)
+      }
+      default: {
+        return this.maxTextureSize
+      }
+    }
+  }
+
+  private setTextureParameters(gl: WebGLRenderingContext, isHighRes: boolean) {
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+    if (isHighRes) {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    }
   }
 
   private selectOptimalLOD(): number {
-    if (!this.originalImage) return 3 // 默认使用原始分辨率
+    if (!this.imageLoaded) return 3 // 默认中等质量
 
     const fitToScreenScale = this.getFitToScreenScale()
     const relativeScale = this.scale / fitToScreenScale
 
-    // 对于超高分辨率图片，当显示原始尺寸或更大时，需要更高的LOD
-    if (this.scale >= 1) {
-      // 原始尺寸或更大，根据实际显示需求选择 LOD
-      if (this.scale >= 8) {
-        return 7 // 16x LOD for extreme zoom
-      } else if (this.scale >= 4) {
-        return 6 // 8x LOD for very high zoom
-      } else if (this.scale >= 2) {
-        return 5 // 4x LOD for high zoom
-      } else if (this.scale >= 1) {
-        return 4 // 2x LOD for original size and above
-      }
-    }
+    // 根据内存压力调整 LOD 选择策略
+    const pressureModifier = this.getMemoryPressureModifier()
 
-    // 对于小于原始尺寸的情况，使用原有逻辑
-    for (const [i, LOD_LEVEL] of LOD_LEVELS.entries()) {
-      if (relativeScale <= LOD_LEVEL.maxViewportScale) {
+    for (const [i, lodLevel] of LOD_LEVELS.entries()) {
+      const adjustedMaxScale = lodLevel.maxViewportScale * pressureModifier
+      if (relativeScale <= adjustedMaxScale) {
         return i
       }
     }
 
-    // 如果超出所有级别，返回最高级别
     return LOD_LEVELS.length - 1
   }
 
-  private updateLOD() {
+  private getMemoryPressureModifier(): number {
+    switch (this.memoryInfo.pressure) {
+      case 'critical': {
+        return 0.5
+      } // 强制使用更低质量
+      case 'high': {
+        return 0.7
+      }
+      case 'medium': {
+        return 0.9
+      }
+      default: {
+        return 1
+      }
+    }
+  }
+
+  private async updateLODIfNeeded() {
     const optimalLOD = this.selectOptimalLOD()
 
-    if (optimalLOD === this.currentLOD) {
-      return // 无需更新
-    }
+    if (optimalLOD === this.currentLOD) return
 
-    // 检查目标 LOD 纹理是否已存在
-    let targetTexture = this.lodTextures.get(optimalLOD)
+    // 检查是否已有目标 LOD 纹理
+    let targetTexture = this.lodTextures.get(optimalLOD)?.texture
 
     if (!targetTexture) {
-      // 创建新的 LOD 纹理
-      const newTexture = this.createLODTexture(optimalLOD)
-      if (newTexture) {
-        targetTexture = newTexture
-      }
+      // 异步创建新纹理到后台缓冲区
+      const newTexture = await this.createLODTextureAsync(optimalLOD)
+      targetTexture = newTexture || undefined
     }
 
     if (targetTexture) {
-      this.currentLOD = optimalLOD
-      this.texture = targetTexture
-      console.info(`Switched to LOD ${optimalLOD}`)
+      // 实现双缓冲切换
+      this.swapBuffers(targetTexture, optimalLOD)
 
-      // 预加载相邻的LOD级别以提供更流畅的体验
+      // 预加载相邻 LOD
       this.preloadAdjacentLODs(optimalLOD)
     }
   }
 
-  private preloadAdjacentLODs(currentLOD: number) {
-    // 异步预加载相邻的LOD级别
-    setTimeout(() => {
-      // 预加载下一个更高质量的 LOD
-      if (currentLOD < LOD_LEVELS.length - 1) {
-        const nextLOD = currentLOD + 1
-        if (!this.lodTextures.has(nextLOD)) {
-          this.createLODTexture(nextLOD)
-        }
-      }
+  private swapBuffers(newTexture: WebGLTexture, newLOD: number) {
+    // 原子性地切换纹理，避免撕裂
+    this.backTexture = newTexture
+    this.isBackBufferReady = true
 
-      // 预加载下一个更低质量的LOD（用于快速缩小）
-      if (currentLOD > 0) {
-        const prevLOD = currentLOD - 1
-        if (!this.lodTextures.has(prevLOD)) {
-          this.createLODTexture(prevLOD)
-        }
+    // 在下一帧切换
+    requestAnimationFrame(() => {
+      if (this.isBackBufferReady) {
+        this.frontTexture = this.backTexture
+        this.currentLOD = newLOD
+        this.isBackBufferReady = false
+        console.info(`Smoothly switched to LOD ${newLOD}`)
       }
-    }, 100) // 延迟 100ms 以避免阻塞主要渲染
+    })
   }
 
-  private debouncedLODUpdate() {
-    // 清除之前的防抖调用
-    if (this.lodUpdateDebounceId !== null) {
-      clearTimeout(this.lodUpdateDebounceId)
+  private async preloadAdjacentLODs(currentLOD: number) {
+    const preloadTasks: Promise<void>[] = []
+
+    // 预加载下一个更高质量的 LOD
+    if (currentLOD < LOD_LEVELS.length - 1) {
+      const nextLOD = currentLOD + 1
+      if (!this.lodTextures.has(nextLOD)) {
+        preloadTasks.push(this.createLODTextureAsync(nextLOD).then(() => {}))
+      }
     }
 
-    // 设置新的防抖调用
-    this.lodUpdateDebounceId = setTimeout(() => {
-      this.lodUpdateDebounceId = null
-      this.updateLOD()
-      this.render()
-    }, this.lodUpdateDelay)
+    // 预加载下一个更低质量的 LOD
+    if (currentLOD > 0) {
+      const prevLOD = currentLOD - 1
+      if (!this.lodTextures.has(prevLOD)) {
+        preloadTasks.push(this.createLODTextureAsync(prevLOD).then(() => {}))
+      }
+    }
+
+    // 使用空闲时间进行预加载
+    if (preloadTasks.length > 0) {
+      const runPreload = () => {
+        Promise.all(preloadTasks).catch(() => {
+          // 忽略预加载错误
+        })
+      }
+
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(runPreload, { timeout: 1000 })
+      } else {
+        setTimeout(runPreload, 100)
+      }
+    }
   }
 
-  private fitImageToScreen() {
-    const scaleX = this.canvasWidth / this.imageWidth
-    const scaleY = this.canvasHeight / this.imageHeight
-    const fitToScreenScale = Math.min(scaleX, scaleY)
+  private startMemoryMonitoring() {
+    const updateMemoryInfo = () => {
+      this.updateMemoryUsage()
+      this.checkMemoryPressure()
 
-    // initialScale 是相对于适应页面大小的比例
-    this.scale = fitToScreenScale * this.config.initialScale
+      // 内存压力过高时进行清理
+      if (this.memoryInfo.pressure === 'critical') {
+        this.emergencyCleanup()
+      } else if (this.memoryInfo.pressure === 'high') {
+        this.cleanupOldTextures()
+      }
+    }
 
-    // Center the image
-    this.translateX = 0
-    this.translateY = 0
-
-    this.isOriginalSize = false
+    // 每秒更新一次内存信息
+    setInterval(updateMemoryInfo, 1000)
+    updateMemoryInfo() // 立即执行一次
   }
 
-  // Easing function for smooth animation - more realistic physics-based easing
-  private easeOutQuart(t: number): number {
-    return 1 - Math.pow(1 - t, 4)
+  private updateMemoryUsage() {
+    let textureMemory = 0
+
+    for (const textureInfo of this.lodTextures.values()) {
+      textureMemory += textureInfo.memory
+    }
+
+    this.memoryInfo.textureMemory = textureMemory
+    this.memoryInfo.usedMemory = textureMemory // 简化估算
+
+    // 尝试获取更准确的内存信息
+    if ('memory' in performance) {
+      const memInfo = (performance as any).memory
+      if (memInfo) {
+        this.memoryInfo.usedMemory = memInfo.usedJSHeapSize
+        this.memoryInfo.totalMemory = memInfo.totalJSHeapSize
+      }
+    }
   }
 
-  private startAnimation(
-    targetScale: number,
-    targetTranslateX: number,
-    targetTranslateY: number,
-    animationTime?: number,
-  ) {
-    this.isAnimating = true
-    this.animationStartTime = performance.now()
-    this.animationDuration =
-      animationTime ||
-      (this.config.smooth
-        ? 300 // Updated to 300ms for more realistic timing
-        : 0)
-    this.startScale = this.scale
-    this.targetScale = targetScale
-    this.startTranslateX = this.translateX
-    this.startTranslateY = this.translateY
+  private checkMemoryPressure() {
+    const usageRatio = this.memoryInfo.textureMemory / this.textureMemoryLimit
 
-    // Apply constraints to target position before starting animation
-    const tempScale = this.scale
-    const tempTranslateX = this.translateX
-    const tempTranslateY = this.translateY
-
-    this.scale = targetScale
-    this.translateX = targetTranslateX
-    this.translateY = targetTranslateY
-    this.constrainImagePosition()
-
-    this.targetTranslateX = this.translateX
-    this.targetTranslateY = this.translateY
-
-    // Restore current state
-    this.scale = tempScale
-    this.translateX = tempTranslateX
-    this.translateY = tempTranslateY
-
-    this.animate()
+    if (usageRatio > 0.9) {
+      this.memoryInfo.pressure = 'critical'
+    } else if (usageRatio > 0.7) {
+      this.memoryInfo.pressure = 'high'
+    } else if (usageRatio > 0.5) {
+      this.memoryInfo.pressure = 'medium'
+    } else {
+      this.memoryInfo.pressure = 'low'
+    }
   }
 
-  private animate() {
-    if (!this.isAnimating) return
+  private emergencyCleanup() {
+    console.warn('Emergency memory cleanup triggered')
 
-    const now = performance.now()
-    const elapsed = now - this.animationStartTime
+    // 只保留当前 LOD 和相邻的一个 LOD
+    const toKeep = new Set([
+      this.currentLOD,
+      this.currentLOD - 1,
+      this.currentLOD + 1,
+    ])
+
+    for (const [lodLevel, textureInfo] of this.lodTextures) {
+      if (!toKeep.has(lodLevel)) {
+        this.gl.deleteTexture(textureInfo.texture)
+        this.lodTextures.delete(lodLevel)
+      }
+    }
+
+    // 强制垃圾回收（如果支持）
+    if ('gc' in window) {
+      ;(window as any).gc()
+    }
+  }
+
+  private cleanupOldTextures() {
+    const now = Date.now()
+    const maxAge = 30000 // 30秒
+
+    for (const [lodLevel, textureInfo] of this.lodTextures) {
+      // 不清理当前正在使用的纹理
+      if (lodLevel === this.currentLOD) continue
+
+      if (now - textureInfo.lastUsed > maxAge) {
+        this.gl.deleteTexture(textureInfo.texture)
+        this.lodTextures.delete(lodLevel)
+      }
+    }
+  }
+
+  private startRenderLoop() {
+    // 初始化帧时间
+    this.lastFrameTime = performance.now()
+    this.lastFPSUpdate = this.lastFrameTime
+
+    const render = (currentTime: number) => {
+      // 计算帧时间
+      const deltaTime = currentTime - this.lastFrameTime
+      this.lastFrameTime = currentTime
+
+      // 更新性能统计
+      this.updatePerformanceStats(deltaTime)
+
+      // 执行动画
+      if (this.isAnimating) {
+        this.updateAnimation(currentTime)
+      }
+
+      // 渲染帧
+      this.renderFrame()
+
+      // 更新调试信息
+      if (this.config.debug && this.onDebugUpdate?.current) {
+        this.updateDebugInfo()
+      }
+
+      // 继续渲染循环
+      this.renderLoop = requestAnimationFrame(render)
+    }
+
+    this.renderLoop = requestAnimationFrame(render)
+  }
+
+  private updatePerformanceStats(deltaTime: number) {
+    this.frameCount++
+    this.performanceInfo.frameTime = deltaTime
+
+    // 每秒更新一次 FPS
+    if (this.lastFrameTime - this.lastFPSUpdate >= 1000) {
+      this.performanceInfo.fps = Math.round(
+        (this.frameCount * 1000) / (this.lastFrameTime - this.lastFPSUpdate),
+      )
+      this.frameCount = 0
+      this.lastFPSUpdate = this.lastFrameTime
+    }
+  }
+
+  private updateAnimation(currentTime: number) {
+    const elapsed = currentTime - this.animationStartTime
     const progress = Math.min(elapsed / this.animationDuration, 1)
     const easedProgress = this.config.smooth
       ? this.easeOutQuart(progress)
       : progress
 
-    // Interpolate scale and translation
+    // 插值动画参数
     this.scale =
       this.startScale + (this.targetScale - this.startScale) * easedProgress
     this.translateX =
@@ -618,30 +1053,88 @@ export class WebGLImageViewerEngine {
       this.startTranslateY +
       (this.targetTranslateY - this.startTranslateY) * easedProgress
 
-    this.render()
-    this.notifyZoomChange()
-
-    if (progress < 1) {
-      requestAnimationFrame(() => this.animate())
-    } else {
+    if (progress >= 1) {
+      // 动画完成
       this.isAnimating = false
-      // Ensure final values are exactly the target values
       this.scale = this.targetScale
       this.translateX = this.targetTranslateX
       this.translateY = this.targetTranslateY
-      this.render()
-      this.notifyZoomChange()
-      // 动画完成后触发 LOD 更新
-      this.debouncedLODUpdate()
+
+      // 动画完成后更新 LOD
+      this.updateLODIfNeeded()
     }
+
+    this.notifyZoomChange()
   }
 
-  private createMatrix(): Float32Array {
-    // Create transformation matrix
-    // 保持所有计算基于 CSS 尺寸，设备像素比的影响已经在 canvas 尺寸设置中处理
+  private renderFrame() {
+    const { gl } = this
+
+    // 设置视口
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height)
+
+    // 清除画布
+    gl.clearColor(0, 0, 0, 0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    if (!this.frontTexture || !this.imageLoaded) {
+      // 渲染一个调试背景以确认渲染循环在工作
+      if (this.config.debug) {
+        gl.clearColor(0.1, 0.1, 0.1, 1) // 深灰色背景
+        gl.clear(gl.COLOR_BUFFER_BIT)
+        console.info(
+          'Rendering debug background - frontTexture:',
+          !!this.frontTexture,
+          'imageLoaded:',
+          this.imageLoaded,
+        )
+      }
+      return
+    }
+
+    if (this.config.debug) {
+      console.info('Rendering frame:', {
+        canvasSize: `${this.canvas.width}x${this.canvas.height}`,
+        imageSize: `${this.imageWidth}x${this.imageHeight}`,
+        scale: this.scale,
+        translate: `${this.translateX}, ${this.translateY}`,
+        frontTexture: !!this.frontTexture,
+      })
+    }
+
+    gl.useProgram(this.program)
+
+    // 设置变换矩阵
+    const matrixLocation = gl.getUniformLocation(this.program, 'u_matrix')
+    const matrix = this.createTransformMatrix()
+    gl.uniformMatrix3fv(matrixLocation, false, matrix)
+
+    if (this.config.debug) {
+      console.info('Transform matrix:', Array.from(matrix))
+    }
+
+    // 绑定纹理
+    const imageLocation = gl.getUniformLocation(this.program, 'u_image')
+    gl.uniform1i(imageLocation, 0)
+
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, this.frontTexture)
+
+    // 绘制
+    gl.drawArrays(gl.TRIANGLES, 0, 6)
+
+    // 检查 WebGL 错误
+    const error = gl.getError()
+    if (error !== gl.NO_ERROR && this.config.debug) {
+      console.error('WebGL error in renderFrame:', error)
+    }
+
+    this.performanceInfo.renderCalls++
+  }
+
+  private createTransformMatrix(): Float32Array {
     const scaleX = (this.imageWidth * this.scale) / this.canvasWidth
     const scaleY = (this.imageHeight * this.scale) / this.canvasHeight
-
     const translateX = (this.translateX * 2) / this.canvasWidth
     const translateY = -(this.translateY * 2) / this.canvasHeight
 
@@ -656,6 +1149,81 @@ export class WebGLImageViewerEngine {
       translateY,
       1,
     ])
+  }
+
+  // 缓动函数
+  private easeOutQuart(t: number): number {
+    return 1 - Math.pow(1 - t, 4)
+  }
+
+  private fitImageToScreen() {
+    const scaleX = this.canvasWidth / this.imageWidth
+    const scaleY = this.canvasHeight / this.imageHeight
+    const fitToScreenScale = Math.min(scaleX, scaleY)
+
+    this.scale = fitToScreenScale * this.config.initialScale
+    this.translateX = 0
+    this.translateY = 0
+    this.isOriginalSize = false
+  }
+
+  private startAnimation(
+    targetScale: number,
+    targetTranslateX: number,
+    targetTranslateY: number,
+    animationTime?: number,
+  ) {
+    this.isAnimating = true
+    this.animationStartTime = performance.now()
+    this.animationDuration = animationTime || (this.config.smooth ? 300 : 0)
+
+    this.startScale = this.scale
+    this.targetScale = targetScale
+    this.startTranslateX = this.translateX
+    this.startTranslateY = this.translateY
+
+    // 应用约束到目标位置
+    const tempScale = this.scale
+    const tempTranslateX = this.translateX
+    const tempTranslateY = this.translateY
+
+    this.scale = targetScale
+    this.translateX = targetTranslateX
+    this.translateY = targetTranslateY
+    this.constrainImagePosition()
+
+    this.targetTranslateX = this.translateX
+    this.targetTranslateY = this.translateY
+
+    // 恢复当前状态
+    this.scale = tempScale
+    this.translateX = tempTranslateX
+    this.translateY = tempTranslateY
+  }
+
+  private updateDebugInfo() {
+    if (!this.onDebugUpdate?.current) return
+
+    const fitToScreenScale = this.getFitToScreenScale()
+    const relativeScale = this.scale / fitToScreenScale
+
+    this.onDebugUpdate.current({
+      scale: this.scale,
+      relativeScale,
+      translateX: this.translateX,
+      translateY: this.translateY,
+      currentLOD: this.currentLOD,
+      lodLevels: LOD_LEVELS.length,
+      canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
+      imageSize: { width: this.imageWidth, height: this.imageHeight },
+      fitToScreenScale,
+      effectiveMaxScale: Math.max(fitToScreenScale * this.config.maxScale, 1),
+      originalSizeScale: 1,
+      renderCount: this.performanceInfo.renderCalls,
+      maxTextureSize: this.maxTextureSize,
+      userMaxScale: this.config.maxScale,
+      memoryInfo: { ...this.memoryInfo },
+    })
   }
 
   private getFitToScreenScale(): number {
@@ -716,90 +1284,6 @@ export class WebGLImageViewerEngine {
 
     // 然后约束位置
     this.constrainImagePosition()
-  }
-
-  private render() {
-    const now = performance.now()
-
-    // 如果距离上次渲染时间不足，则使用节流
-    if (now - this.lastRenderTime < this.renderThrottleDelay) {
-      // 清除之前的节流调用
-      if (this.renderThrottleId !== null) {
-        cancelAnimationFrame(this.renderThrottleId)
-      }
-
-      // 安排下次渲染
-      this.renderThrottleId = requestAnimationFrame(() => {
-        this.renderThrottleId = null
-        this.renderInternal()
-      })
-      return
-    }
-
-    this.renderInternal()
-  }
-
-  private renderInternal() {
-    this.lastRenderTime = performance.now()
-
-    const { gl } = this
-
-    // 确保视口设置正确，使用实际的 canvas 像素尺寸
-    gl.viewport(0, 0, this.canvas.width, this.canvas.height)
-
-    // 清除为完全透明
-    gl.clearColor(0, 0, 0, 0)
-    gl.clear(gl.COLOR_BUFFER_BIT)
-
-    if (!this.texture) return
-
-    gl.useProgram(this.program)
-
-    // Set transformation matrix
-    const matrixLocation = gl.getUniformLocation(this.program, 'u_matrix')
-    gl.uniformMatrix3fv(matrixLocation, false, this.createMatrix())
-
-    const imageLocation = gl.getUniformLocation(this.program, 'u_image')
-    gl.uniform1i(imageLocation, 0)
-
-    gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, this.texture)
-
-    gl.drawArrays(gl.TRIANGLES, 0, 6)
-
-    // Update debug info if enabled
-    if (this.config.debug && this.onDebugUpdate) {
-      this.updateDebugInfo()
-    }
-  }
-
-  private updateDebugInfo() {
-    if (!this.onDebugUpdate) return
-
-    const fitToScreenScale = this.getFitToScreenScale()
-    const relativeScale = this.scale / fitToScreenScale
-
-    // 计算有效的最大缩放值
-    const originalSizeScale = 1
-    const userMaxScale = fitToScreenScale * this.config.maxScale
-    const effectiveMaxScale = Math.max(userMaxScale, originalSizeScale)
-
-    this.onDebugUpdate.current({
-      scale: this.scale,
-      relativeScale,
-      translateX: this.translateX,
-      translateY: this.translateY,
-      currentLOD: this.currentLOD,
-      lodLevels: LOD_LEVELS.length,
-      canvasSize: { width: this.canvasWidth, height: this.canvasHeight },
-      imageSize: { width: this.imageWidth, height: this.imageHeight },
-      fitToScreenScale,
-      userMaxScale,
-      effectiveMaxScale,
-      originalSizeScale,
-      renderCount: performance.now(),
-      maxTextureSize: this.maxTextureSize,
-    })
   }
 
   private notifyZoomChange() {
@@ -864,7 +1348,6 @@ export class WebGLImageViewerEngine {
     this.lastMouseY = e.clientY
 
     this.constrainImagePosition()
-    this.render()
   }
 
   private handleMouseUp() {
@@ -1036,7 +1519,6 @@ export class WebGLImageViewerEngine {
       this.lastMouseY = e.touches[0].clientY
 
       this.constrainImagePosition()
-      this.render()
     } else if (e.touches.length === 2 && !this.config.pinch.disabled) {
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
@@ -1108,9 +1590,8 @@ export class WebGLImageViewerEngine {
       this.translateY = y - this.canvasHeight / 2 - zoomY * this.scale
 
       this.constrainImagePosition()
-      this.render()
       this.notifyZoomChange()
-      this.debouncedLODUpdate()
+      this.updateLODIfNeeded()
     }
   }
 
@@ -1169,9 +1650,9 @@ export class WebGLImageViewerEngine {
     window.removeEventListener('resize', this.boundResizeCanvas)
 
     // 清理节流相关的资源
-    if (this.renderThrottleId !== null) {
-      cancelAnimationFrame(this.renderThrottleId)
-      this.renderThrottleId = null
+    if (this.renderLoop !== null) {
+      cancelAnimationFrame(this.renderLoop)
+      this.renderLoop = null
     }
 
     // 清理 LOD 更新防抖相关的资源
@@ -1187,6 +1668,45 @@ export class WebGLImageViewerEngine {
     }
 
     // 清理 WebGL 资源
-    this.cleanupLODTextures()
+    this.cleanupWebGLResources()
+  }
+
+  private cleanupWebGLResources() {
+    const { gl } = this
+
+    // 删除所有纹理
+    for (const textureInfo of this.lodTextures.values()) {
+      gl.deleteTexture(textureInfo.texture)
+    }
+    this.lodTextures.clear()
+
+    // 清理纹理池
+    for (const texture of this.texturePool) {
+      gl.deleteTexture(texture)
+    }
+    this.texturePool.clear()
+
+    // 清理主纹理引用
+    this.frontTexture = null
+    this.backTexture = null
+
+    // 删除着色器程序
+    if (this.program) {
+      gl.deleteProgram(this.program)
+    }
+
+    // 清理 OffscreenGL 资源
+    if (this.offscreenGL && this.offscreenProgram) {
+      this.offscreenGL.deleteProgram(this.offscreenProgram)
+    }
+  }
+
+  // 添加公共方法用于获取内存和性能信息
+  public getMemoryInfo(): MemoryInfo {
+    return { ...this.memoryInfo }
+  }
+
+  public getPerformanceInfo(): PerformanceInfo {
+    return { ...this.performanceInfo }
   }
 }

@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import { useCallback,useImperativeHandle, useState } from 'react'
+import { useCallback, useImperativeHandle, useState } from 'react'
 
 import type { DebugInfo } from './interface'
 
@@ -52,6 +52,12 @@ const DebugInfoComponent = ({ ref }: DebugInfoProps) => {
     originalSizeScale: 1,
     renderCount: 0,
     maxTextureSize: 0,
+    memoryInfo: {
+      usedMemory: 0,
+      totalMemory: 0,
+      textureMemory: 0,
+      pressure: 'low',
+    },
   })
 
   // 暴露更新调试信息的方法给父组件
@@ -122,6 +128,16 @@ const DebugInfoComponent = ({ ref }: DebugInfoProps) => {
       <div>User Max Scale: {debugInfo.userMaxScale.toFixed(3)}</div>
       <div>Effective Max Scale: {debugInfo.effectiveMaxScale.toFixed(3)}</div>
       <div>Original Size Scale: {debugInfo.originalSizeScale.toFixed(3)}</div>
+
+      {/* 内存信息 */}
+      <div>
+        Memory Usage: {debugInfo.memoryInfo.usedMemory.toFixed(0)} /{' '}
+        {debugInfo.memoryInfo.totalMemory.toFixed(0)} bytes
+      </div>
+      <div>
+        Texture Memory: {debugInfo.memoryInfo.textureMemory.toFixed(0)} bytes
+      </div>
+      <div>Pressure: {debugInfo.memoryInfo.pressure}</div>
     </div>
   )
 }

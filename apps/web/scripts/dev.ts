@@ -12,7 +12,7 @@ async function main() {
   await precheck()
   // Get command line arguments excluding node and script name
   const args = process.argv.slice(2)
-  await $({ cwd: workdir, stdio: 'inherit' })`vite ${args}`
+  await $({ cwd: workdir, stdio: 'inherit' })`vite --host ${args}`
 }
 
 main()

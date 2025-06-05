@@ -51,8 +51,16 @@ export interface WebGLImageViewerRef {
   resetView: () => void
   getScale: () => number
 }
+// 内存监控接口
+export interface MemoryInfo {
+  usedMemory: number
+  totalMemory: number
+  textureMemory: number
+  pressure: 'low' | 'medium' | 'high' | 'critical'
+}
 
 export interface DebugInfo {
+  memoryInfo: MemoryInfo
   scale: number
   relativeScale: number
   translateX: number
