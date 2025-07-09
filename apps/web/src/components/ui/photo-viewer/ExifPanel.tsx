@@ -23,6 +23,7 @@ import { getImageFormat } from '~/lib/image-utils'
 import { Spring } from '~/lib/spring'
 
 import { MotionButtonBase } from '../button'
+import { MiniMapViewer } from '../map/MiniMapViewer'
 import { formatExifData, Row } from './formatExifData'
 import { HistogramChart } from './HistogramChart'
 import { RawExifViewer } from './RawExifViewer'
@@ -581,22 +582,60 @@ export const ExifPanel: FC<{
                   <h4 className="my-2 text-sm font-medium text-white/80">
                     {t('exif.gps.location.info')}
                   </h4>
-                  <div className="space-y-1 text-sm">
-                    <Row
-                      label={t('exif.gps.latitude')}
-                      value={formattedExifData.gps.latitude}
-                    />
-                    <Row
-                      label={t('exif.gps.longitude')}
-                      value={formattedExifData.gps.longitude}
-                    />
-                    {formattedExifData.gps.altitude && (
+                  <div className="space-y-3 text-sm">
+                    {/* GPS Coordinates */}
+                    <div className="space-y-1">
                       <Row
-                        label={t('exif.gps.altitude')}
-                        value={`${formattedExifData.gps.altitude}m`}
+                        label={t('exif.gps.latitude')}
+                        value={formattedExifData.gps.latitude}
                       />
+                      <Row
+                        label={t('exif.gps.longitude')}
+                        value={formattedExifData.gps.longitude}
+                      />
+                      {formattedExifData.gps.altitude && (
+                        <Row
+                          label={t('exif.gps.altitude')}
+                          value={`${formattedExifData.gps.altitude}m`}
+                        />
+                      )}
+                    </div>
+
+                    {/* Embedded Map - only show if map is configured */}
+                    {siteConfig.map && siteConfig.map.includes('maplibre') && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-white/70">
+                          {t('exif.gps.map.preview', {
+                            defaultValue: 'Location',
+                          })}
+                        </div>
+                        {(() => {
+                          // Extract numeric values from formatted GPS strings
+                          const latMatch =
+                            formattedExifData.gps.latitude?.match(/([0-9.-]+)/)
+                          const lngMatch =
+                            formattedExifData.gps.longitude?.match(/([0-9.-]+)/)
+
+                          if (latMatch && lngMatch) {
+                            const lat = Number.parseFloat(latMatch[1])
+                            const lng = Number.parseFloat(lngMatch[1])
+
+                            return (
+                              <MiniMapViewer
+                                latitude={lat}
+                                longitude={lng}
+                                className="h-32 w-full"
+                                zoom={14}
+                              />
+                            )
+                          }
+                          return null
+                        })()}
+                      </div>
                     )}
-                    <div className="mt-2 text-right">
+
+                    {/* External Map Link */}
+                    <div className="text-right">
                       {(() => {
                         const positionUrl = buildPositionViewerUrl(
                           formattedExifData.gps.longitude,
