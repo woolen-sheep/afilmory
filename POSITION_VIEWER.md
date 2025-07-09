@@ -56,4 +56,12 @@ The URL template supports the following variables:
 
 ## Fallback Behavior
 
-If no `positionViewer` is configured, the system will fall back to AMap as the default position viewer.
+If no `positionViewer` is configured, the system will automatically fall back to AMap as the default position viewer. This ensures backward compatibility and that GPS location links always work.
+
+## Benefits
+
+This configuration system provides several advantages:
+- **Cleaner experience**: Avoid popup-heavy interfaces from some map providers
+- **User choice**: Select the map service that works best in your region
+- **Flexibility**: Easy to switch between different map providers
+- **Backward compatibility**: Existing installations continue to work unchanged
