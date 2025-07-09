@@ -1,6 +1,7 @@
 import './PhotoViewer.css'
 
 import type { PhotoManifestItem, PickedExif } from '@afilmory/builder'
+import { siteConfig } from '@config'
 import { isNil } from 'es-toolkit/compat'
 import { useAtomValue } from 'jotai'
 import { m } from 'motion/react'
@@ -25,6 +26,36 @@ import { MotionButtonBase } from '../button'
 import { formatExifData, Row } from './formatExifData'
 import { HistogramChart } from './HistogramChart'
 import { RawExifViewer } from './RawExifViewer'
+
+/**
+ * Build position viewer URL from template
+ * Replaces template variables with actual values
+ */
+const buildPositionViewerUrl = (
+  longitude: string | null,
+  latitude: string | null,
+  name: string,
+): string | null => {
+  if (!longitude || !latitude) return null
+
+  const template =
+    siteConfig.positionViewer ||
+    'https://uri.amap.com/marker?position={longitude},{latitude}&name={name}'
+
+  // Extract numeric values from formatted strings like "118.131694° E"
+  const longitudeMatch = longitude.match(/([0-9.-]+)/)
+  const latitudeMatch = latitude.match(/([0-9.-]+)/)
+
+  if (!longitudeMatch || !latitudeMatch) return null
+
+  const longitudeNum = longitudeMatch[1]
+  const latitudeNum = latitudeMatch[1]
+
+  return template
+    .replace('{longitude}', encodeURIComponent(longitudeNum))
+    .replace('{latitude}', encodeURIComponent(latitudeNum))
+    .replace('{name}', encodeURIComponent(name))
+}
 
 export const ExifPanel: FC<{
   currentPhoto: PhotoManifestItem
@@ -566,15 +597,25 @@ export const ExifPanel: FC<{
                       />
                     )}
                     <div className="mt-2 text-right">
-                      <a
-                        href={`https://uri.amap.com/marker?position=${formattedExifData.gps.longitude},${formattedExifData.gps.latitude}&name=${encodeURIComponent(t('exif.gps.location.name'))}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue inline-flex items-center gap-1 text-xs underline transition-colors hover:text-blue-300"
-                      >
-                        {t('exif.gps.view.map')}
-                        <i className="i-mingcute-external-link-line" />
-                      </a>
+                      {(() => {
+                        const positionUrl = buildPositionViewerUrl(
+                          formattedExifData.gps.longitude,
+                          formattedExifData.gps.latitude,
+                          t('exif.gps.location.name'),
+                        )
+
+                        return positionUrl ? (
+                          <a
+                            href={positionUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue inline-flex items-center gap-1 text-xs underline transition-colors hover:text-blue-300"
+                          >
+                            {t('exif.gps.view.map')}
+                            <i className="i-mingcute-external-link-line" />
+                          </a>
+                        ) : null
+                      })()}
                     </div>
                   </div>
                 </div>

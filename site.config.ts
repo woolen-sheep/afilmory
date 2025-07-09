@@ -12,6 +12,7 @@ export interface SiteConfig {
   social?: Social
   feed?: Feed
   map?: MapConfig
+  positionViewer?: string
 }
 
 /**
@@ -20,6 +21,19 @@ export interface SiteConfig {
  * - An array for multiple providers in priority order: ['maplibre']
  */
 type MapConfig = 'maplibre'[]
+
+/**
+ * Position viewer configuration
+ * URL template for external position viewer with variables:
+ * - {longitude}: GPS longitude coordinate
+ * - {latitude}: GPS latitude coordinate
+ * - {name}: Location name/label
+ *
+ * Examples:
+ * - AMap: "https://uri.amap.com/marker?position={longitude},{latitude}&name={name}"
+ * - OpenStreetMap: "https://www.openstreetmap.org/?mlat={latitude}&mlon={longitude}&zoom=15"
+ * - Google Maps: "https://maps.google.com/?q={latitude},{longitude}"
+ */
 
 interface Feed {
   folo?: {

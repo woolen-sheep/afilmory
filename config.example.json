@@ -11,5 +11,6 @@
   },
   "map": [
     "maplibre"
-  ]
+  ],
+  "positionViewer": "https://uri.amap.com/marker?position={longitude},{latitude}&name={name}"
 }
