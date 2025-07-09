@@ -44,7 +44,28 @@ export const MiniMapViewer: FC<MiniMapViewerProps> = ({
           zoom,
         }}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="https://tiles.openfreemap.org/styles/liberty"
+        mapStyle={{
+          version: 8,
+          sources: {
+            'carto-dark': {
+              type: 'raster',
+              tiles: [
+                'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+              ],
+              tileSize: 256,
+              attribution: '© OpenStreetMap contributors, © CARTO',
+            },
+          },
+          layers: [
+            {
+              id: 'carto-dark',
+              type: 'raster',
+              source: 'carto-dark',
+            },
+          ],
+        }}
         onLoad={onMapLoad}
         attributionControl={false}
         logoPosition="bottom-left"
