@@ -341,6 +341,7 @@ export const PhotoViewer = ({
                         <button
                           type="button"
                           className={`bg-material-medium absolute top-1/2 right-4 z-20 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-white opacity-0 backdrop-blur-sm duration-200 group-hover:opacity-100 hover:bg-black/40`}
+                          onClick={handleNext}
                         >
                           <i className={`i-mingcute-right-line text-xl`} />
                         </button>
