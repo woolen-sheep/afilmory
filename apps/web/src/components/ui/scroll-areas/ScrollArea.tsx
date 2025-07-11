@@ -100,7 +100,7 @@ const Viewport = ({
       ref={ref}
       tabIndex={focusable ? -1 : void 0}
       className={clsxm(
-        'block size-full',
+        'block size-full [&>div]:!block',
 
         className,
       )}

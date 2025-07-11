@@ -4,7 +4,6 @@ import type { FC } from 'react'
 import { i18nAtom } from '~/i18n'
 import { jotaiStore } from '~/lib/jotai'
 
-
 // Helper function to clean up EXIF values by removing unnecessary characters
 const cleanExifValue = (value: string | null | undefined): string | null => {
   if (!value) return null
@@ -430,7 +429,7 @@ export const Row: FC<{
   return (
     <div className="flex justify-between gap-4 text-sm">
       <span className="text-text-secondary shrink-0">{label}</span>
-      <span className="text-text min-w-0 text-right">
+      <span className="text-text min-w-0 truncate text-right">
         {Array.isArray(value) ? value.join(' ') : value}
       </span>
     </div>
