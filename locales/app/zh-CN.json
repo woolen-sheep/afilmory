@@ -8,6 +8,8 @@
   "action.tag.clear": "清除",
   "action.tag.empty": "暂无标签",
   "action.tag.filter": "标签筛选",
+  "action.tag.not-found": "没有标签匹配您的搜索",
+  "action.tag.search": "搜索标签",
   "action.view.github": "查看 GitHub 仓库",
   "error.feedback": "仍然存在此问题？请在 Github 中提供反馈，谢谢！",
   "error.reload": "重新加载",

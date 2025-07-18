@@ -8,6 +8,8 @@
   "action.tag.clear": "クリア",
   "action.tag.empty": "タグがありません",
   "action.tag.filter": "タグフィルター",
+  "action.tag.not-found": "検索に一致するタグがありません",
+  "action.tag.search": "タグ検索",
   "action.view.github": "GitHub リポジトリを表示",
   "error.feedback": "まだ問題が解決しませんか？GitHub でフィードバックをお願いします。",
   "error.reload": "再読み込み",

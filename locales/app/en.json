@@ -8,6 +8,8 @@
   "action.tag.clear": "Clear",
   "action.tag.empty": "No tags available",
   "action.tag.filter": "Tag Filter",
+  "action.tag.not-found": "No tags match your search",
+  "action.tag.search": "Search Tags",
   "action.view.github": "View GitHub Repository",
   "error.feedback": "Still having this issue? Please provide feedback on Github, thank you!",
   "error.reload": "Reload",

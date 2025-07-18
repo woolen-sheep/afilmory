@@ -1,6 +1,6 @@
 import { photoLoader } from '@afilmory/data'
-import { useAtom } from 'jotai'
-import { useState } from 'react'
+import { useAtom, useSetAtom } from 'jotai'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { Drawer } from 'vaul'
@@ -65,6 +65,15 @@ const SortPanel = () => {
 const TagsPanel = () => {
   const { t } = useTranslation()
   const [gallerySetting, setGallerySetting] = useAtom(gallerySettingAtom)
+  const [searchQuery, setSearchQuery] = useState(gallerySetting.tagSearchQuery)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // 当面板打开时自动聚焦输入框
+  useEffect(() => {
+    if (gallerySetting.isTagsPanelOpen && inputRef.current) {
+      inputRef.current?.focus()
+    }
+  }, [gallerySetting.isTagsPanelOpen])
 
   const toggleTag = (tag: string) => {
     const newSelectedTags = gallerySetting.selectedTags.includes(tag)
@@ -81,8 +90,32 @@ const TagsPanel = () => {
     setGallerySetting({
       ...gallerySetting,
       selectedTags: [],
+      tagSearchQuery: '', // 清除搜索查询
+      isTagsPanelOpen: false, // 关闭标签面板
     })
   }
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    setGallerySetting((prev) => ({
+      ...prev,
+      tagSearchQuery: query, // 同步搜索查询
+    }))
+  }
+
+  // 根据正则查询过滤标签
+  const filteredTags = allTags.filter((tag) => {
+    if (!searchQuery) return true
+
+    try {
+      const regex = new RegExp(searchQuery, 'i')
+      return regex.test(tag)
+    } catch {
+      // 如果正则表达式无效，回退到简单的包含查询
+      return tag.toLowerCase().includes(searchQuery.toLowerCase())
+    }
+  })
 
   return (
     <div className="lg:pb-safe-2 w-full p-2 pb-0 text-sm lg:w-64 lg:p-0">
@@ -101,14 +134,32 @@ const TagsPanel = () => {
           </Button>
         )}
       </div>
+      {/* 搜索栏 */}
+      <div className="mb-3 px-2">
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder={t('action.tag.search')}
+            value={searchQuery}
+            onChange={onSearchChange}
+            className="w-full rounded-md border border-gray-200 bg-transparent px-3 py-2 text-sm placeholder:text-gray-500 focus:border-gray-400 focus:outline-none dark:text-white dark:placeholder:text-gray-400 dark:focus:border-gray-500"
+          />
+          <i className="i-mingcute-search-line absolute top-1/2 right-3 -translate-y-1/2 text-gray-400" />
+        </div>
+      </div>
 
       {allTags.length === 0 ? (
         <div className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
           {t('action.tag.empty')}
         </div>
+      ) : filteredTags.length === 0 ? (
+        <div className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+          {t('action.tag.not-found')}
+        </div>
       ) : (
         <div className="pb-safe-offset-4 lg:pb-safe -mx-4 -mb-4 max-h-64 overflow-y-auto px-4 lg:mx-0 lg:mb-0 lg:px-0">
-          {allTags.map((tag) => (
+          {filteredTags.map((tag) => (
             <div
               key={tag}
               onClick={() => toggleTag(tag)}
@@ -124,6 +175,16 @@ const TagsPanel = () => {
       )}
     </div>
   )
+}
+
+const onTagsPanelOpenChange = (
+  open: boolean,
+  setGallerySetting: (setting: any) => void,
+) => {
+  setGallerySetting((prev) => ({
+    ...prev,
+    isTagsPanelOpen: open,
+  }))
 }
 
 const ColumnsPanel = () => {
@@ -205,15 +266,28 @@ const DesktopActionButton = ({
   badge,
   children,
   contentClassName,
+  open,
+  onOpenChange,
 }: {
   icon: string
   title: string
   badge?: number | string
   children: React.ReactNode
   contentClassName?: string
+  open?: boolean
+  onOpenChange?: (
+    open: boolean,
+    setGallerySetting: (setting: any) => void,
+  ) => void
 }) => {
+  const setGallerySetting = useSetAtom(gallerySettingAtom)
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      defaultOpen={open}
+      onOpenChange={(open) => {
+        onOpenChange?.(open, setGallerySetting)
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <ActionButton
           icon={icon}
@@ -273,12 +347,19 @@ const ResponsiveActionButton = ({
   badge,
   children,
   contentClassName,
+  globalOpen,
+  onGlobalOpenChange,
 }: {
   icon: string
   title: string
   badge?: number | string
   children: React.ReactNode
   contentClassName?: string
+  globalOpen?: boolean
+  onGlobalOpenChange?: (
+    open: boolean,
+    setGallerySetting: (setting: any) => void,
+  ) => void
 }) => {
   const isMobile = useMobile()
   const [open, setOpen] = useState(false)
@@ -303,6 +384,8 @@ const ResponsiveActionButton = ({
       title={title}
       badge={badge}
       contentClassName={contentClassName}
+      open={globalOpen}
+      onOpenChange={onGlobalOpenChange}
     >
       {children}
     </DesktopActionButton>
@@ -336,6 +419,9 @@ export const ActionGroup = () => {
             ? gallerySetting.selectedTags.length
             : undefined
         }
+        // 使用全局状态实现滚动时自动收起标签面板
+        globalOpen={gallerySetting.isTagsPanelOpen}
+        onGlobalOpenChange={onTagsPanelOpenChange}
       >
         <TagsPanel />
       </ResponsiveActionButton>
