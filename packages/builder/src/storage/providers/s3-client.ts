@@ -52,7 +52,11 @@ export class S3ProviderClient {
     })
   }
 
-  async listObjects(params?: { prefix?: string | null; maxKeys?: number }): Promise<Response> {
+  async listObjects(params?: {
+    prefix?: string | null
+    maxKeys?: number
+    continuationToken?: string
+  }): Promise<Response> {
     const url = new URL(this.buildObjectUrl())
     url.searchParams.set('list-type', '2')
     if (params?.prefix) {
@@ -60,6 +64,9 @@ export class S3ProviderClient {
     }
     if (params?.maxKeys) {
       url.searchParams.set('max-keys', String(params.maxKeys))
+    }
+    if (params?.continuationToken) {
+      url.searchParams.set('continuation-token', params.continuationToken)
     }
     return await this.client.fetch(url.toString(), { method: 'GET' })
   }

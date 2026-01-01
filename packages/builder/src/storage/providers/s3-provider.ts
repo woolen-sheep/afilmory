@@ -303,29 +303,70 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   private async listObjects(prefix?: string): Promise<StorageObject[]> {
+    const maxTotal = this.config.maxFileLimit
+    const shouldPaginate = maxTotal === undefined || maxTotal > 1000
+    const all: StorageObject[] = []
+    let continuationToken: string | null = null
+
+    while (true) {
+      const { objects, nextContinuationToken, isTruncated } = await this.listPagedObjects(prefix, continuationToken)
+      all.push(...objects)
+
+      if (maxTotal && all.length >= maxTotal) {
+        break
+      }
+
+      if (!shouldPaginate || !isTruncated || !nextContinuationToken) {
+        break
+      }
+
+      continuationToken = nextContinuationToken
+    }
+
+    return maxTotal ? all.slice(0, maxTotal) : all
+  }
+
+  private async listPagedObjects(
+    prefix?: string,
+    continuationToken?: string | null,
+  ): Promise<{ objects: StorageObject[]; nextContinuationToken: string | null; isTruncated: boolean }> {
+    const maxKeysPerRequest = this.config.maxFileLimit ? Math.min(this.config.maxFileLimit, 1000) : 1000
     const response = await this.client.listObjects({
       prefix: prefix ?? this.config.prefix,
-      maxKeys: this.config.maxFileLimit,
+      maxKeys: maxKeysPerRequest,
+      continuationToken: continuationToken ?? undefined,
     })
     const text = await response.text()
     if (!response.ok) {
       throw new Error(`列出 S3 对象失败 (status ${response.status}): ${formatS3ErrorBody(text)}`)
     }
     const parsed = xmlParser.parse(text)
-    const contents = parsed?.ListBucketResult?.Contents ?? []
+    const result = parsed?.ListBucketResult ?? {}
+    const contents = result?.Contents ?? []
     const items = Array.isArray(contents) ? contents : contents ? [contents] : []
+    const nextContinuationToken =
+      typeof result?.NextContinuationToken === 'string' && result.NextContinuationToken.trim().length > 0
+        ? result.NextContinuationToken
+        : null
+    const isTruncatedRaw = result?.IsTruncated
+    const isTruncated =
+      typeof isTruncatedRaw === 'string' ? isTruncatedRaw.toLowerCase() === 'true' : Boolean(isTruncatedRaw)
 
-    return items
-      .map((item) => {
-        const key = item?.Key ?? ''
-        return {
-          key,
-          size: item?.Size !== undefined ? Number(item.Size) : undefined,
-          lastModified: item?.LastModified ? new Date(item.LastModified) : undefined,
-          etag: sanitizeS3Etag(typeof item?.ETag === 'string' ? item.ETag : undefined),
-        } satisfies StorageObject
-      })
-      .filter((item) => Boolean(item.key))
+    return {
+      objects: items
+        .map((item) => {
+          const key = item?.Key ?? ''
+          return {
+            key,
+            size: item?.Size !== undefined ? Number(item.Size) : undefined,
+            lastModified: item?.LastModified ? new Date(item.LastModified) : undefined,
+            etag: sanitizeS3Etag(typeof item?.ETag === 'string' ? item.ETag : undefined),
+          } satisfies StorageObject
+        })
+        .filter((item) => Boolean(item.key)),
+      nextContinuationToken,
+      isTruncated,
+    }
   }
 
   async deleteFile(key: string): Promise<void> {
