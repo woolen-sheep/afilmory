@@ -2,8 +2,8 @@ import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import type { ExifInfo } from '@afilmory/renderer'
-import { renderOgImage } from '@afilmory/renderer'
+import type { ExifInfo } from '@afilmory/og-renderer'
+import { renderOgImage } from '@afilmory/og-renderer'
 import type { SatoriOptions } from 'satori'
 
 import type { Logger } from '../../logger/index.js'

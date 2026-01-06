@@ -88,7 +88,7 @@ export const onRequest = async ({ request, next }) => {
 - Loads site branding from `config.json` (or provided path) and falls back to simple defaults.
 - Reuses the generated thumbnail (buffer or URL) as the image source, avoiding extra reads of the original file.
 - Injects light EXIF/context (title, date, focal length, aperture, ISO, shutter speed, camera) into the card.
-- Renders the card with `@afilmory/renderer` (Satori + resvg) using bundled fonts, then uploads the PNG to storage.
+- Renders the card with `@afilmory/og-renderer` (Satori + resvg) using bundled fonts, then uploads the PNG to storage.
 - Caches uploads and public URLs within a single run so repeated work is skipped.
 
 ## Configuration
