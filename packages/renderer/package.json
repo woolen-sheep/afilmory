@@ -1,0 +1,15 @@
+{
+    "name": "@afilmory/renderer",
+    "type": "module",
+    "private": true,
+    "exports": {
+        ".": "./src/index.ts",
+        "./renderer": "./src/og.renderer.tsx",
+        "./template": "./src/og.template.tsx"
+    },
+    "dependencies": {
+        "@resvg/resvg-js": "2.6.2",
+        "hono": "4.11.1",
+        "satori": "0.18.3"
+    }
+}

@@ -2,22 +2,21 @@ import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import * as React from 'react'
+import type { ExifInfo } from '@afilmory/renderer'
+import { renderOgImage } from '@afilmory/renderer'
 import type { SatoriOptions } from 'satori'
 
-import { renderOgImage } from '../../../../be/apps/core/src/modules/content/og/og.renderer'
-import type { ExifInfo } from '../../../../be/apps/core/src/modules/content/og/og.template'
-import type { Logger } from '../logger/index.js'
-import { workdir } from '../path.js'
-import { StorageManager } from '../storage/index.js'
-import type { S3CompatibleConfig, StorageConfig } from '../storage/interfaces.js'
-import type { PhotoManifestItem } from '../types/photo.js'
-import type { ThumbnailPluginData } from './thumbnail-storage/shared.js'
-import { THUMBNAIL_PLUGIN_DATA_KEY } from './thumbnail-storage/shared.js'
-import type { BuilderPlugin } from './types.js'
+import type { Logger } from '../../logger/index.js'
+import { workdir } from '../../path.js'
+import { StorageManager } from '../../storage/index.js'
+import type { S3CompatibleConfig, StorageConfig } from '../../storage/interfaces.js'
+import type { PhotoManifestItem } from '../../types/photo.js'
+import type { ThumbnailPluginData } from '../thumbnail-storage/shared.js'
+import { THUMBNAIL_PLUGIN_DATA_KEY } from '../thumbnail-storage/shared.js'
+import type { BuilderPlugin } from '../types.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(__dirname, '../../../../')
+const repoRoot = path.resolve(__dirname, '../../../../..')
 const ogAssetsDir = path.join(repoRoot, 'be/apps/core/src/modules/content/og/assets')
 
 const PLUGIN_NAME = 'afilmory:og-image'
@@ -58,24 +57,12 @@ interface PluginRunState {
   urlCache: Map<string, string>
   fonts?: SatoriOptions['fonts'] | null
   siteMeta?: SiteMeta
-  reactPatched?: boolean
 }
 
 function normalizeDirectory(directory: string | undefined): string {
   const value = directory?.trim() || DEFAULT_DIRECTORY
   const normalized = value.replaceAll('\\', '/').replaceAll(/^\/+|\/+$/g, '')
   return normalized || DEFAULT_DIRECTORY
-}
-
-async function ensureReactRuntime(logger: Logger, state: PluginRunState): Promise<void> {
-  if (state.reactPatched) return
-  try {
-    // Attach React runtime for modules that were compiled expecting React global
-    ;(globalThis as any).React = React
-    state.reactPatched = true
-  } catch (error) {
-    logger.main.error('OG image plugin: failed to inject React runtime', error)
-  }
 }
 
 function trimSlashes(value: string | undefined | null): string | null {
@@ -105,6 +92,9 @@ function resolveRemotePrefix(config: UploadableStorageConfig, directory: string)
   }
 }
 
+/**
+ * Get or initialize per-run caches to dedupe uploads and URL lookups.
+ */
 function getOrCreateRunState(container: Map<string, unknown>): PluginRunState {
   let state = container.get(RUN_STATE_KEY) as PluginRunState | undefined
   if (!state) {
@@ -135,6 +125,9 @@ async function loadFontFile(fileName: string): Promise<Buffer | null> {
   return null
 }
 
+/**
+ * Load required fonts for Satori/resvg. Missing fonts cause the plugin to skip rendering.
+ */
 async function loadFonts(logger: Logger): Promise<SatoriOptions['fonts'] | null> {
   const geist = await loadFontFile('Geist-Medium.ttf')
   const harmony = await loadFontFile('HarmonyOS_Sans_SC_Medium.ttf')
@@ -160,6 +153,9 @@ async function loadFonts(logger: Logger): Promise<SatoriOptions['fonts'] | null>
   ]
 }
 
+/**
+ * Resolve site branding from a JSON config file, with sane fallbacks when the file is absent.
+ */
 async function loadSiteMeta(options: OgImagePluginOptions, logger: Logger): Promise<SiteMeta> {
   const fallback: SiteMeta = {
     siteName: options.siteName?.trim() || DEFAULT_SITE_NAME,
@@ -202,6 +198,7 @@ async function resolveThumbnailDataUrl(
   pluginData: ThumbnailPluginData | undefined,
   logger: Logger,
 ): Promise<string | null> {
+  // Prefer the in-memory thumbnail to avoid extra reads; fall back to URLs when needed.
   if (pluginData?.buffer) {
     return bufferToDataUrl(pluginData.buffer, 'image/jpeg')
   }
@@ -252,6 +249,9 @@ function formatDate(input?: string | null): string | undefined {
   })
 }
 
+/**
+ * Build a lightweight EXIF summary for display; returns null when nothing meaningful is present.
+ */
 function buildExifInfo(photo: PhotoManifestItem): ExifInfo | null {
   const { exif } = photo
   if (!exif) {
@@ -285,6 +285,13 @@ function getPhotoDimensions(photo: PhotoManifestItem) {
   }
 }
 
+/**
+ * Render Open Graph images for processed photos and upload them to remote storage.
+ *
+ * The plugin reuses generated thumbnails as the image source, injects light EXIF
+ * metadata, and caches uploads/URLs during a single builder run to reduce storage
+ * churn.
+ */
 export default function ogImagePlugin(options: OgImagePluginOptions = {}): BuilderPlugin {
   let resolved: ResolvedPluginConfig | null = null
   let externalStorageManager: StorageManager | null = null
@@ -360,8 +367,6 @@ export default function ogImagePlugin(options: OgImagePluginOptions = {}): Build
         }
 
         const state = getOrCreateRunState(runShared)
-
-        await ensureReactRuntime(logger, state)
 
         if (!state.siteMeta) {
           state.siteMeta = await loadSiteMeta(options, logger)
