@@ -5,82 +5,47 @@ This plugin renders Open Graph (OG) images for each processed photo and uploads 
 ## Examples
 
 ### Plugin usage
+
+import `ogImagePlugin` and add it to your builder config's plugins array.
 ```ts
 import { defineBuilderConfig, thumbnailStoragePlugin, ogImagePlugin } from '@afilmory/builder'
 
 export default defineBuilderConfig(() => ({
     storage: {
-        provider: 's3',
-        bucket: process.env.S3_BUCKET_NAME!,
-        region: process.env.S3_REGION!,
-        endpoint: process.env.S3_ENDPOINT, // Optional, defaults to AWS S3
-        accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
-        prefix: process.env.S3_PREFIX || 'photos/',
-        customDomain: process.env.S3_CUSTOM_DOMAIN, // Optional CDN domain
-        excludeRegex: process.env.S3_EXCLUDE_REGEX,
-        downloadConcurrency: 16, // Adjust based on network
+        ...
     },
 	plugins: [
 		thumbnailStoragePlugin(),
-		ogImagePlugin({
-			siteName: "YOUR_SITE_NAME",
-			accentColor: '#fb7185',
-		}),
+        ogImagePlugin({
+            vendor: {
+                type: 'cloudflare-middleware', // OG image vendor type
+                storageURL: 'https://your-og-storage.example.com',
+            },
+        }),
 	],
 }))
 ```
 
-### Example Cloudflare Pages Middleware
-
-If you are using Cloudflare Pages to host your Afilmory, you can use the following minimal middleware to rewrite the OG image meta tags on photo pages to point to the generated OG images stored in your storage.
-You only need to change the `SITE_ORIGIN` and `OG_PATH` constants to match your site, and put the file in your `functions/_middleware.js` path.
-
-```js
-// Minimal middleware to rewrite OG image meta tags for photo pages on Cloudflare Pages.
-// Assumes OG images are stored at https://your.afilmory.site/.afilmory/og-images/{slug}.png
-
-const SITE_ORIGIN = 'https://your.afilmory.site'
-const OG_PATH = '/.afilmory/og-images'
-const OG_PATTERN = /^https?:\/\/your\.afilmory\.site\/+og-image.*\.png$/i
-
-const normalizeSlug = (slug) => {
-    try {
-        return encodeURIComponent(decodeURIComponent(slug))
-    } catch {
-        return encodeURIComponent(slug)
-    }
-}
-
-const buildOgUrl = (slug) => `${SITE_ORIGIN}${OG_PATH}/${normalizeSlug(slug)}.png`
-const stripPhotosPrefix = (pathname) => pathname.replace(/^\/?photos\//, '').replace(/\/$/, '')
-const isHtml = (response) => (response.headers.get('content-type') || '').includes('text/html')
-const shouldRewrite = (content) => Boolean(content?.trim() && OG_PATTERN.test(content.trim()))
-
-export const onRequest = async ({ request, next }) => {
-    const url = new URL(request.url)
-    if (!url.pathname.startsWith('/photos/')) return next()
-
-    const slug = stripPhotosPrefix(url.pathname)
-    if (!slug) return next()
-
-    const response = await next()
-    if (!isHtml(response)) return response
-
-    const ogUrl = buildOgUrl(slug)
-    const handler = {
-        element(element) {
-            const content = element.getAttribute('content')
-            if (shouldRewrite(content)) element.setAttribute('content', ogUrl)
-        },
-    }
-
-    return new HTMLRewriter()
-        .on('meta[property="og:image"]', handler)
-        .on('meta[property="twitter:image"]', handler)
-        .transform(response)
-}
+The first time you use the plugin, you need to force re-build your manifest to generate and upload OG images for all photos:
+```bash
+ npm run build:manifest -- --force-manifest
 ```
+
+
+### Use generated Cloudflare Pages Middleware
+
+If you are using Cloudflare Pages to host your Afilmory, you can use the generated middleware to rewrite the OG image meta tags on photo pages to point to the generated OG images stored in your storage.
+
+You only need to adjust the `storageURL` to your own OG image URL prefix and run `pnpm build`. This will generate the middleware code at `functions/_middleware.ts`. Then you can run `wrangler` to deploy your Cloudflare Pages site with the new middleware, it will automatically detect the middleware file:
+```bash
+npx wrangler pages deploy apps/web/dist/ --project-name=YOUR_PROJECT_NAME
+
+# You should see outputs like:
+# ...
+# ✨ Uploading _routes.json
+# ...
+```
+
 
 
 ## How it works
@@ -98,6 +63,8 @@ export const onRequest = async ({ request, next }) => {
 - `contentType` (string): MIME type for uploads. Defaults to `image/png`.
 - `siteName` / `accentColor` (strings): optional overrides for branding.
 - `siteConfigPath` (string): path to a site config JSON; defaults to `config.json` in `process.cwd()`.
+- `vendor` (object): optional vendor automation. Current vendor types:
+    - `cloudflare-middleware`: requires `storageURL`; optional `siteConfigPath` to override the `config.json` location. After the build finishes, it writes a Cloudflare Pages middleware to `functions/_middleware.ts` using `url` from `config.json` and `storageURL` for the OG host.
 
 ## Dependencies
 - Uses fonts from `be/apps/core/src/modules/content/og/assets` (falls back to other repo paths). If fonts are missing, the plugin skips rendering for that run.
