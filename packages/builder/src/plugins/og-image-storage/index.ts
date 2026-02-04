@@ -84,6 +84,11 @@ function joinSegments(...segments: Array<string | null | undefined>): string {
   return filtered.join('/')
 }
 
+function resolveSiteConfigPath(siteConfigPath: string | undefined): string {
+  if (!siteConfigPath) return path.resolve(repoRoot, 'config.json')
+  return path.isAbsolute(siteConfigPath) ? siteConfigPath : path.resolve(repoRoot, siteConfigPath)
+}
+
 function resolveRemotePrefix(config: UploadableStorageConfig, directory: string): string {
   switch (config.provider) {
     case 's3':
@@ -168,9 +173,7 @@ async function loadSiteMeta(options: OgImagePluginOptions, logger: Logger): Prom
     accentColor: options.accentColor?.trim() || DEFAULT_ACCENT_COLOR,
   }
 
-  const siteConfigPath = options.siteConfigPath
-    ? path.resolve(process.cwd(), options.siteConfigPath)
-    : path.resolve(process.cwd(), '../../config.json')
+  const siteConfigPath = resolveSiteConfigPath(options.siteConfigPath)
 
   try {
     const raw = await readFile(siteConfigPath, 'utf8')
@@ -327,6 +330,7 @@ export default function ogImagePlugin(options: OgImagePluginOptions = {}): Build
             vendor = createVendor(options.vendor)
           } catch (error) {
             logger.main.error('OG image plugin: failed to initialize vendor config.', error)
+            throw error
           }
         }
 

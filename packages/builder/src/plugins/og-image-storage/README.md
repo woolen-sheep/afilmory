@@ -16,12 +16,15 @@ export default defineBuilderConfig(() => ({
     },
 	plugins: [
 		thumbnailStoragePlugin(),
-        ogImagePlugin({
-            vendor: {
-                type: 'cloudflare-middleware', // OG image vendor type
-                storageURL: 'https://your-og-storage.example.com',
-            },
-        }),
+        ogImagePlugin(
+            {
+                vendor: {
+                    type: 'cloudflare-middleware', // OG image vendor type
+                    storageURL: 'https://your-og-storage.example.com',
+                    siteConfigPath: './config.json', // optional: defaults to repo root config.json
+                },
+            }
+        )
 	],
 }))
 ```
@@ -46,6 +49,23 @@ npx wrangler pages deploy apps/web/dist/ --project-name=YOUR_PROJECT_NAME
 # ...
 ```
 
+`storageURL` should be the origin/host where OG images are served (for example, a CDN or object storage domain without a path).
+
+#### Cloudflare middleware vendor configuration
+
+```ts
+vendor: {
+    type: 'cloudflare-middleware',
+    storageURL: 'https://cdn.example.com', // OG images bucket/CDN origin
+    siteConfigPath: './config.json', // optional, defaults to repo root config.json
+}
+```
+
+- The middleware is written to `functions/_middleware.ts` at repo root.
+- `storageURL` points to the base URL that serves `.afilmory/og-images/*`.
+- `siteConfigPath` (optional) is resolved from the repo root when relative; defaults to `config.json` at the repo root.
+- To verify: run `pnpm build`, check that `functions/_middleware.ts` is generated, and ensure the OG base inside matches your `storageURL`.
+
 
 
 ## How it works
@@ -62,9 +82,9 @@ npx wrangler pages deploy apps/web/dist/ --project-name=YOUR_PROJECT_NAME
 - `storageConfig` (storage config): optional override; otherwise uses the builder's current storage.
 - `contentType` (string): MIME type for uploads. Defaults to `image/png`.
 - `siteName` / `accentColor` (strings): optional overrides for branding.
-- `siteConfigPath` (string): path to a site config JSON; defaults to `config.json` in `process.cwd()`.
+- `siteConfigPath` (string): path to a site config JSON; defaults to `config.json` at the repo root (relative paths are resolved from the repo root).
 - `vendor` (object): optional vendor automation. Current vendor types:
-    - `cloudflare-middleware`: requires `storageURL`; optional `siteConfigPath` to override the `config.json` location. After the build finishes, it writes a Cloudflare Pages middleware to `functions/_middleware.ts` using `url` from `config.json` and `storageURL` for the OG host.
+    - `cloudflare-middleware`: requires `storageURL`; optional `siteConfigPath` to override the repo-root `config.json` location. After the build finishes, it writes a Cloudflare Pages middleware to `functions/_middleware.ts` using `url` from `config.json` and `storageURL` for the OG host.
 
 ## Dependencies
 - Uses fonts from `be/apps/core/src/modules/content/og/assets` (falls back to other repo paths). If fonts are missing, the plugin skips rendering for that run.
