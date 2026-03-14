@@ -703,6 +703,9 @@ importers:
       unplugin-ast:
         specifier: 0.16.0
         version: 0.16.0
+      vite:
+        specifier: 8.0.0-beta.0
+        version: 8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
       vite-plugin-html:
         specifier: 3.2.2
         version: 3.2.2(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
@@ -1482,7 +1485,7 @@ importers:
         version: 0.18.0(synckit@0.11.12)(typescript@5.9.3)
       unplugin-dts:
         specifier: 1.0.0-beta.6
-        version: 1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+        version: 1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rolldown@1.0.0-beta.53)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
       vite:
         specifier: 8.0.0-beta.0
         version: 8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
@@ -5763,9 +5766,6 @@ packages:
   '@types/node@20.19.33':
     resolution: {integrity: sha512-Rs1bVAIdBs5gbTIKza/tgpMuG1k3U/UMJLWecIMxNdJFDMzcM5LOiLVRYh3PilWEYDIeUDv7bpiHPLPsbydGcw==}
 
-  '@types/node@24.10.1':
-    resolution: {integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==}
-
   '@types/node@25.2.3':
     resolution: {integrity: sha512-m0jEgYlYz+mDJZ2+F4v8D1AyQb+QzsNqRuI7xg1VQX/KlKS0qT9r1Mo16yo5F/MtifXFgaofIFsdFMox2SxIbQ==}
 
@@ -5903,7 +5903,6 @@ packages:
   '@vercel/postgres@0.10.0':
     resolution: {integrity: sha512-fSD23DxGND40IzSkXjcFcxr53t3Tiym59Is0jSYIFpG4/0f0KO9SGtcp1sXiebvPaGe7N/tU05cH4yt2S6/IPg==}
     engines: {node: '>=18.14'}
-    deprecated: '@vercel/postgres is deprecated. If you are setting up a new database, you can choose an alternate storage solution from the Vercel Marketplace. If you had an existing Vercel Postgres database, it should have been migrated to Neon as a native Vercel integration. You can find more details and the guide to migrate to Neon''s SDKs here: https://neon.com/docs/guides/vercel-postgres-transition-guide'
 
   '@vingle/bmp-js@0.2.5':
     resolution: {integrity: sha512-tiY69wMrXgIVcdpkjQybXTyQw+P2rKzUfA6b+biM6BD1utr5QeeEj9fzs0fFHVf+3siTsYwzI6zltV9+i6ehEA==}
@@ -15954,11 +15953,6 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@24.10.1':
-    dependencies:
-      undici-types: 7.16.0
-    optional: true
-
   '@types/node@25.2.3':
     dependencies:
       undici-types: 7.16.0
@@ -15976,7 +15970,7 @@ snapshots:
 
   '@types/pg@8.11.6':
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 25.2.3
       pg-protocol: 1.11.0
       pg-types: 4.1.0
     optional: true
@@ -21898,7 +21892,7 @@ snapshots:
       magic-string-ast: 1.0.3
       unplugin: 3.0.0
 
-  unplugin-dts@1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)):
+  unplugin-dts@1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rolldown@1.0.0-beta.53)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)):
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@4.57.1)
       '@volar/typescript': 2.4.23
@@ -21912,6 +21906,7 @@ snapshots:
     optionalDependencies:
       '@microsoft/api-extractor': 7.52.13(@types/node@25.2.3)
       esbuild: 0.25.12
+      rolldown: 1.0.0-beta.53
       rollup: 4.57.1
       vite: 8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
     transitivePeerDependencies:
