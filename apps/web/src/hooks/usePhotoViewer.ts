@@ -1,15 +1,14 @@
 import { photoLoader } from '@afilmory/data'
-import { atom, useAtom, useAtomValue } from 'jotai'
+import { useAtomValue } from 'jotai'
 import { use, useCallback, useMemo } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { gallerySettingAtom } from '~/atoms/app'
+import { setViewer, viewerAtom } from '~/atoms/viewer'
 import { jotaiStore } from '~/lib/jotai'
 import { trackView } from '~/lib/tracker'
 import { PhotosContext } from '~/providers/photos-provider'
 
-const openAtom = atom(false)
-const currentIndexAtom = atom(0)
-const triggerElementAtom = atom<HTMLElement | null>(null)
 const data = photoLoader.getPhotos()
 
 // 抽取照片筛选和排序逻辑为独立函数
@@ -123,50 +122,94 @@ export const useContextPhotos = () => {
 
 export const usePhotoViewer = () => {
   const photos = usePhotos()
-  const [isOpen, setIsOpen] = useAtom(openAtom)
-  const [currentIndex, setCurrentIndex] = useAtom(currentIndexAtom)
-  const [triggerElement, setTriggerElement] = useAtom(triggerElementAtom)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { photoId: urlPhotoId } = useParams()
+  const viewerState = useAtomValue(viewerAtom)
 
-  const id = useMemo(() => {
-    return photos[currentIndex]?.id
-  }, [photos, currentIndex])
+  // Derive isOpen from URL params - viewer is open if a photoId param is present
+  const isOpen = !!urlPhotoId
+
+  // Derive currentIndex from URL photo ID
+  const currentIndex = useMemo(() => {
+    if (!urlPhotoId) return viewerState.photoId ? photos.findIndex((p) => p.id === viewerState.photoId) : 0
+    const index = photos.findIndex((p) => p.id === urlPhotoId)
+    return index !== -1 ? index : 0
+  }, [urlPhotoId, photos, viewerState.photoId])
+
   const openViewer = useCallback(
     (index: number, element?: HTMLElement) => {
-      setCurrentIndex(index)
-      setTriggerElement(element || null)
-      setIsOpen(true)
+      const photo = photos[index]
+      if (!photo) return
+
+      setViewer((prev) => ({
+        ...prev,
+        isOpen: true,
+        photoId: photo.id,
+        triggerElement: element || null,
+      }))
+
+      // Navigate to photo URL (creates history entry)
+      navigate(`/photos/${photo.id}${location.search}`)
+
       // 防止背景滚动
       document.body.style.overflow = 'hidden'
 
-      trackView(id)
+      trackView(photo.id)
     },
-    [id, setCurrentIndex, setIsOpen, setTriggerElement],
+    [photos, navigate, location.search],
   )
 
   const closeViewer = useCallback(() => {
-    setIsOpen(false)
-    setTriggerElement(null)
+    setViewer((prev) => ({
+      ...prev,
+      isOpen: false,
+      triggerElement: null,
+    }))
+
+    // Navigate back to gallery (creates history entry)
+    // Check if we're on explory path to preserve it
+    const isExploryPath = location.pathname.includes('/explory')
+    if (isExploryPath) {
+      navigate(`/explory${location.search}`)
+    } else {
+      navigate(`/${location.search}`)
+    }
+
     // 恢复背景滚动
     document.body.style.overflow = ''
-  }, [setIsOpen, setTriggerElement])
+  }, [navigate, location.search, location.pathname])
 
   const goToIndex = useCallback(
     (index: number) => {
       if (index >= 0 && index < photos.length) {
-        setCurrentIndex(index)
-        trackView(photos[index].id)
+        const photo = photos[index]
+
+        // Skip if URL already points to this photo (prevents loop on browser back/forward)
+        if (urlPhotoId === photo.id) {
+          return
+        }
+
+        setViewer((prev) => ({
+          ...prev,
+          photoId: photo.id,
+        }))
+
+        // Create history entry for each photo navigation to support browser back/forward
+        navigate(`/photos/${photo.id}${location.search}`)
+
+        trackView(photo.id)
       }
     },
-    [photos, setCurrentIndex],
+    [photos, navigate, location.search, urlPhotoId],
   )
 
   return {
     isOpen,
     currentIndex,
-    triggerElement,
+    triggerElement: viewerState.triggerElement,
     openViewer,
     closeViewer,
-
     goToIndex,
   }
 }

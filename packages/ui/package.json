@@ -23,9 +23,9 @@
     "@radix-ui/react-switch": "1.2.6",
     "@radix-ui/react-tooltip": "1.2.8",
     "clsx": "^2.1.1",
-    "jotai": "^2.16.1",
-    "motion": "^12.25.0",
-    "react-intersection-observer": "10.0.0",
+    "jotai": "^2.17.1",
+    "motion": "12.34.0",
+    "react-intersection-observer": "10.0.2",
     "sonner": "2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwind-variants": "^3.2.2",
@@ -33,10 +33,10 @@
     "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
-    "@types/react": "^19.2.8",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "peerDependencies": {
     "react": "^19.1.1",

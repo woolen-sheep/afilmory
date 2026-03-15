@@ -1,44 +1,58 @@
-.mask-scroller {
-  mask:
-    linear-gradient(white, transparent) 50% 0 / 100% 0 no-repeat,
-    linear-gradient(white, white) 50% 50% / 100% 100% no-repeat,
-    linear-gradient(transparent, white) 50% 100% / 100% 30px no-repeat;
-  mask-composite: exclude;
-  mask-size:
-    100% calc((var(--scroll-progress-top) / 100) * 30px),
-    100% 100%,
-    100% calc((100 - (100 * (var(--scroll-progress-bottom) / 100))) * 1px);
+@property --mask-top {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
 }
 
-@supports (animation-timeline: scroll()) {
+@property --mask-bottom {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 30px;
+}
+
+.mask-scroller {
+  --mask-top: 0px;
+  --mask-bottom: 30px;
+  mask: linear-gradient(
+    to bottom,
+    transparent calc(var(--mask-top) - 30px),
+    black var(--mask-top),
+    black calc(100% - var(--mask-bottom)),
+    transparent calc(100% - var(--mask-bottom) + 30px)
+  );
+}
+
+@supports (animation-timeline: scroll(self block)) {
   .mask-scroller {
-    mask:
-      linear-gradient(white, transparent) 50% 0 / 100% 0 no-repeat,
-      linear-gradient(white, white) 50% 50% / 100% 100% no-repeat,
-      linear-gradient(transparent, white) 50% 100% / 100% 30px no-repeat;
-    mask-composite: exclude;
-    animation:
-      mask-up both linear,
-      mask-down both linear;
-    animation-timeline: scroll(self);
+    animation-name: mask-up, mask-down;
+    animation-duration: 1s, 1s;
+    animation-timing-function: linear, linear;
+    animation-fill-mode: both, both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range:
+      0 50px,
+      calc(100% - 50px) 100%;
+  }
+}
+@supports (animation-timeline: scroll()) and (not (animation-timeline: scroll(self block))) {
+  .mask-scroller {
+    animation-name: mask-up, mask-down;
+    animation-duration: 1s, 1s;
+    animation-timing-function: linear, linear;
+    animation-fill-mode: both, both;
+    animation-timeline: scroll(), scroll();
     animation-range:
       0 50px,
       calc(100% - 50px) 100%;
   }
 }
 @keyframes mask-up {
-  100% {
-    mask-size:
-      100% 30px,
-      100% 100%,
-      100% 30px;
+  to {
+    --mask-top: 30px;
   }
 }
 @keyframes mask-down {
-  100% {
-    mask-size:
-      100% 30px,
-      100% 100%,
-      100% 0;
+  to {
+    --mask-bottom: 0px;
   }
 }

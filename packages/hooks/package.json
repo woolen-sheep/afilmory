@@ -8,14 +8,14 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "jotai": "^2.16.1",
+    "jotai": "^2.17.1",
     "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
-    "@types/react": "^19.2.8",
-    "@types/react-dom": "^19.2.3",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "peerDependencies": {
     "react": "^19.1.1"

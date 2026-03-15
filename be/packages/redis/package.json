@@ -1,6 +1,7 @@
 {
   "name": "@afilmory/redis",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -11,6 +12,6 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "ioredis": "^5.9.1"
+    "ioredis": "^5.9.3"
   }
 }

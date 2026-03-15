@@ -22,11 +22,11 @@
     "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
   },
   "dependencies": {
-    "prettier": "3.7.4"
+    "prettier": "3.8.1"
   },
   "devDependencies": {
-    "eslint": "9.39.2",
-    "eslint-config-hyoban": "5.0.3",
+    "eslint": "10.0.0",
+    "eslint-config-hyoban": "5.0.6",
     "jiti": "2.6.1",
     "lint-staged": "16.2.7",
     "simple-git-hooks": "2.13.1",

@@ -1,10 +1,20 @@
+import { hostname } from 'node:os'
+
 import type { NextRequest } from 'next/server'
+
+function getDefaultCoreApiBase(): string {
+  // In Docker, HOSTNAME is set to the container ID, and localhost may not resolve correctly (IPv6 issues).
+  // Use os.hostname() which is resolvable within the Docker network.
+  const isDocker = process.env.HOSTNAME && /^[a-f0-9]{12,64}$/.test(process.env.HOSTNAME)
+  const host = isDocker ? hostname() : 'localhost'
+  return `http://${host}:3000`
+}
 
 const CORE_API_BASE =
   process.env.CORE_API_URL ??
   process.env.NEXT_PUBLIC_CORE_API_URL ??
   process.env.API_BASE_URL ??
-  'http://localhost:3000'
+  getDefaultCoreApiBase()
 
 const FORWARDED_HEADER_KEYS = ['cookie', 'authorization', 'x-forwarded-host', 'x-forwarded-proto', 'host']
 
