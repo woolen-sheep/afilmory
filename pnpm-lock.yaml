@@ -523,8 +523,8 @@ importers:
         specifier: 11.1.4
         version: 11.1.4
       jotai:
-        specifier: 2.16.1
-        version: 2.16.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@19.2.8)(react@19.2.3)
+        specifier: 2.17.1
+        version: 2.17.1(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.2.14)(react@19.2.4)
       maplibre-gl:
         specifier: ^5.18.0
         version: 5.18.0
@@ -575,7 +575,7 @@ importers:
         version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-scan:
         specifier: 0.4.3
-        version: 0.4.3(@types/react@19.2.8)(next@16.1.1(@babel/core@7.28.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react-router-dom@6.30.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-router@7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(rollup@2.79.2)
+        version: 0.4.3(@types/react@19.2.14)(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router-dom@6.30.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-router@7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(rollup@2.79.2)
       react-use-measure:
         specifier: 2.1.7
         version: 2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -784,7 +784,7 @@ importers:
         version: 3.989.0
       '@creem_io/better-auth':
         specifier: 0.0.12
-        version: 0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)
+        version: 0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@types/pg@8.16.0)(@vercel/postgres@0.10.0)(kysely@0.28.9)(pg@8.18.0(pg-native@3.5.2))(postgres@3.4.8))(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.11.9)
@@ -893,7 +893,7 @@ importers:
         version: 1.0.0-rc.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@creem_io/better-auth':
         specifier: 0.0.12
-        version: 0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3(pg-native@3.5.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.5)
+        version: 0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)
       '@essentials/request-timeout':
         specifier: 1.3.0
         version: 1.3.0
@@ -944,7 +944,7 @@ importers:
         version: 5.90.21(react@19.2.4)
       better-auth:
         specifier: 1.4.7
-        version: 1.4.7(drizzle-kit@0.31.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3(pg-native@3.5.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1))
+        version: 1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -967,8 +967,8 @@ importers:
         specifier: 11.1.4
         version: 11.1.4
       jotai:
-        specifier: 2.16.1
-        version: 2.16.1(@babel/core@7.28.4)(@babel/template@7.27.2)(@types/react@19.2.8)(react@19.2.3)
+        specifier: 2.17.1
+        version: 2.17.1(@babel/core@7.28.4)(@babel/template@7.28.6)(@types/react@19.2.14)(react@19.2.4)
       lucide-react:
         specifier: 0.564.0
         version: 0.564.0(react@19.2.4)
@@ -998,7 +998,7 @@ importers:
         version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-scan:
         specifier: 0.4.3
-        version: 0.4.3(@types/react@19.2.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react-router-dom@6.30.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-router@7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(rollup@4.55.1)
+        version: 0.4.3(@types/react@19.2.14)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router-dom@6.30.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-router@7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(rollup@4.57.1)
       sonner:
         specifier: 2.0.7
         version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1297,8 +1297,8 @@ importers:
         specifier: 2.1.0
         version: 2.1.0
       heic-to:
-        specifier: 1.3.0
-        version: 1.3.0
+        specifier: 1.4.2
+        version: 1.4.2
       nunjucks:
         specifier: 3.2.4
         version: 3.2.4(chokidar@3.6.0)
@@ -1488,7 +1488,7 @@ importers:
         version: 0.18.0(synckit@0.11.12)(typescript@5.9.3)
       unplugin-dts:
         specifier: 1.0.0-beta.6
-        version: 1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rolldown@1.0.0-beta.53)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+        version: 1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
       vite:
         specifier: 8.0.0-beta.0
         version: 8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
@@ -5005,22 +5005,10 @@ packages:
     resolution: {integrity: sha512-rGfNUfn0GIeXtBP1wL5MnzSj98+PZe/AXaGBCRmT0ts80lU5CATYGxXukeTX39XBKsxzFpEeK+Mrp9faXOlmrw==}
     cpu: [arm]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-arm-musleabihf@4.53.3':
-    resolution: {integrity: sha512-vTNlKq+N6CK/8UktsrFuc+/7NlEYVxgaEgRXVUVK258Z5ymho29skzW1sutgYjqNnquGwVUObAaxae8rZ6YMhg==}
-    cpu: [arm]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-arm-musleabihf@4.55.1':
-    resolution: {integrity: sha512-grPNWydeKtc1aEdrJDWk4opD7nFtQbMmV7769hiAaYyUKCT1faPRm2av8CX1YJsZ4TLAZcg9gTR1KvEzoLjXkg==}
-    cpu: [arm]
-    os: [linux]
-    libc: [musl]
-
-  '@rollup/rollup-linux-arm64-gnu@4.53.3':
-    resolution: {integrity: sha512-RGrFLWgMhSxRs/EWJMIFM1O5Mzuz3Xy3/mnxJp/5cVhZ2XoCAxJnmNsEyeMJtpK+wu0FJFWz+QF4mjCA7AUQ3w==}
+  '@rollup/rollup-linux-arm64-gnu@4.57.1':
+    resolution: {integrity: sha512-MMtej3YHWeg/0klK2Qodf3yrNzz6CGjo2UntLvk2RSPlhzgLvYEB3frRvbEF2wRKh1Z2fDIg9KRPe1fawv7C+g==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
@@ -5029,22 +5017,10 @@ packages:
     resolution: {integrity: sha512-1a/qhaaOXhqXGpMFMET9VqwZakkljWHLmZOX48R0I/YLbhdxr1m4gtG1Hq7++VhVUmf+L3sTAf9op4JlhQ5u1Q==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-arm64-musl@4.53.3':
-    resolution: {integrity: sha512-kASyvfBEWYPEwe0Qv4nfu6pNkITLTb32p4yTgzFCocHnJLAHs+9LjUu9ONIhvfT/5lv4YS5muBHyuV84epBo/A==}
-    cpu: [arm64]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-arm64-musl@4.55.1':
-    resolution: {integrity: sha512-puS1MEgWX5GsHSoiAsF0TYrpomdvkaXm0CofIMG5uVkP6IBV+ZO9xhC5YEN49nsgYo1DuuMquF9+7EDBVYu4uA==}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@rollup/rollup-linux-loong64-gnu@4.53.3':
-    resolution: {integrity: sha512-JiuKcp2teLJwQ7vkJ95EwESWkNRFJD7TQgYmCnrPtlu50b4XvT5MOmurWNrCj3IFdyjBQ5p9vnrX4JM6I8OE7g==}
+  '@rollup/rollup-linux-loong64-gnu@4.57.1':
+    resolution: {integrity: sha512-QWO6RQTZ/cqYtJMtxhkRkidoNGXc7ERPbZN7dVW5SdURuLeVU7lwKMpo18XdcmpWYd0qsP1bwKPf7DNSUinhvA==}
     cpu: [loong64]
     os: [linux]
     libc: [glibc]
@@ -5053,16 +5029,10 @@ packages:
     resolution: {integrity: sha512-xpObYIf+8gprgWaPP32xiN5RVTi/s5FCR+XMXSKmhfoJjrpRAjCuuqQXyxUa/eJTdAE6eJ+KDKaoEqjZQxh3Gw==}
     cpu: [loong64]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-loong64-musl@4.55.1':
-    resolution: {integrity: sha512-MR8c0+UxAlB22Fq4R+aQSPBayvYa3+9DrwG/i1TKQXFYEaoW3B5b/rkSRIypcZDdWjWnpcvxbNaAJDcSbJU3Lw==}
-    cpu: [loong64]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-ppc64-gnu@4.53.3':
-    resolution: {integrity: sha512-EoGSa8nd6d3T7zLuqdojxC20oBfNT8nexBbB/rkxgKj5T5vhpAQKKnD+h3UkoMuTyXkP5jTjK/ccNRmQrPNDuw==}
+  '@rollup/rollup-linux-ppc64-gnu@4.57.1':
+    resolution: {integrity: sha512-4BrCgrpZo4hvzMDKRqEaW1zeecScDCR+2nZ86ATLhAoJ5FQ+lbHVD3ttKe74/c7tNT9c6F2viwB3ufwp01Oh2w==}
     cpu: [ppc64]
     os: [linux]
     libc: [glibc]
@@ -5071,16 +5041,10 @@ packages:
     resolution: {integrity: sha512-NOlUuzesGauESAyEYFSe3QTUguL+lvrN1HtwEEsU2rOwdUDeTMJdO5dUYl/2hKf9jWydJrO9OL/XSSf65R5+Xw==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-ppc64-musl@4.55.1':
-    resolution: {integrity: sha512-ziR1OuZx0vdYZZ30vueNZTg73alF59DicYrPViG0NEgDVN8/Jl87zkAPu4u6VjZST2llgEUjaiNl9JM6HH1Vdw==}
-    cpu: [ppc64]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-riscv64-gnu@4.53.3':
-    resolution: {integrity: sha512-4s+Wped2IHXHPnAEbIB0YWBv7SDohqxobiiPA1FIWZpX+w9o2i4LezzH/NkFUl8LRci/8udci6cLq+jJQlh+0g==}
+  '@rollup/rollup-linux-riscv64-gnu@4.57.1':
+    resolution: {integrity: sha512-ptA88htVp0AwUUqhVghwDIKlvJMD/fmL/wrQj99PRHFRAG6Z5nbWoWG4o81Nt9FT+IuqUQi+L31ZKAFeJ5Is+A==}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
@@ -5089,34 +5053,16 @@ packages:
     resolution: {integrity: sha512-S51t7aMMTNdmAMPpBg7OOsTdn4tySRQvklmL3RpDRyknk87+Sp3xaumlatU+ppQ+5raY7sSTcC2beGgvhENfuw==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-riscv64-musl@4.53.3':
-    resolution: {integrity: sha512-68k2g7+0vs2u9CxDt5ktXTngsxOQkSEV/xBbwlqYcUrAVh6P9EgMZvFsnHy4SEiUl46Xf0IObWVbMvPrr2gw8A==}
-    cpu: [riscv64]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-riscv64-musl@4.55.1':
-    resolution: {integrity: sha512-u9yZ0jUkOED1BFrqu3BwMQoixvGHGZ+JhJNkNKY/hyoEgOwlqKb62qu+7UjbPSHYjiVy8kKJHvXKv5coH4wDeg==}
-    cpu: [riscv64]
-    os: [linux]
-    libc: [musl]
-
-  '@rollup/rollup-linux-s390x-gnu@4.53.3':
-    resolution: {integrity: sha512-VYsFMpULAz87ZW6BVYw3I6sWesGpsP9OPcyKe8ofdg9LHxSbRMd7zrVrr5xi/3kMZtpWL/wC+UIJWJYVX5uTKg==}
+  '@rollup/rollup-linux-s390x-gnu@4.57.1':
+    resolution: {integrity: sha512-Bl00OFnVFkL82FHbEqy3k5CUCKH6OEJL54KCyx2oqsmZnFTR8IoNqBF+mjQVcRCT5sB6yOvK8A37LNm/kPJiZg==}
     cpu: [s390x]
     os: [linux]
     libc: [glibc]
 
-  '@rollup/rollup-linux-s390x-gnu@4.55.1':
-    resolution: {integrity: sha512-/0PenBCmqM4ZUd0190j7J0UsQ/1nsi735iPRakO8iPciE7BQ495Y6msPzaOmvx0/pn+eJVVlZrNrSh4WSYLxNg==}
-    cpu: [s390x]
-    os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-x64-gnu@4.53.3':
-    resolution: {integrity: sha512-3EhFi1FU6YL8HTUJZ51imGJWEX//ajQPfqWLI3BQq4TlvHy4X0MOr5q3D2Zof/ka0d5FNdPwZXm3Yyib/UEd+w==}
+  '@rollup/rollup-linux-x64-gnu@4.57.1':
+    resolution: {integrity: sha512-ABca4ceT4N+Tv/GtotnWAeXZUZuM/9AQyCyKYyKnpk4yoA7QIAuBt6Hkgpw8kActYlew2mvckXkvx0FfoInnLg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
@@ -5125,22 +5071,10 @@ packages:
     resolution: {integrity: sha512-HFps0JeGtuOR2convgRRkHCekD7j+gdAuXM+/i6kGzQtFhlCtQkpwtNzkNj6QhCDp7DRJ7+qC/1Vg2jt5iSOFw==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
-
-  '@rollup/rollup-linux-x64-musl@4.53.3':
-    resolution: {integrity: sha512-eoROhjcc6HbZCJr+tvVT8X4fW3/5g/WkGvvmwz/88sDtSJzO7r/blvoBDgISDiCjDRZmHpwud7h+6Q9JxFwq1Q==}
-    cpu: [x64]
-    os: [linux]
     libc: [musl]
 
-  '@rollup/rollup-linux-x64-musl@4.55.1':
-    resolution: {integrity: sha512-bD+zjpFrMpP/hqkfEcnjXWHMw5BIghGisOKPj+2NaNDuVT+8Ds4mPf3XcPHuat1tz89WRL+1wbcxKY3WSbiT7w==}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@rollup/rollup-openbsd-x64@4.55.1':
-    resolution: {integrity: sha512-eLXw0dOiqE4QmvikfQ6yjgkg/xDM+MdU9YJuP4ySTibXU0oAvnEWXt7UDJmD4UkYialMfOGFPJnIHSe/kdzPxg==}
+  '@rollup/rollup-openbsd-x64@4.57.1':
+    resolution: {integrity: sha512-H+hXEv9gdVQuDTgnqD+SQffoWoc0Of59AStSzTEj/feWTBAnSfSD3+Dql1ZruJQxmykT/JVY0dE8Ka7z0DH1hw==}
     cpu: [x64]
     os: [openbsd]
 
@@ -6633,10 +6567,6 @@ packages:
   commander@5.1.0:
     resolution: {integrity: sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg==}
     engines: {node: '>= 6'}
-
-  commander@7.2.0:
-    resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
-    engines: {node: '>= 10'}
 
   commander@8.3.0:
     resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
@@ -12936,19 +12866,17 @@ snapshots:
       conventional-commits-filter: 5.0.0
       conventional-commits-parser: 6.2.1
 
-  '@creem_io/better-auth@0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)':
+  '@creem_io/better-auth@0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@types/pg@8.16.0)(@vercel/postgres@0.10.0)(kysely@0.28.9)(pg@8.18.0(pg-native@3.5.2))(postgres@3.4.8))(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)':
     dependencies:
       better-auth: 1.4.7(drizzle-kit@0.31.8)(drizzle-orm@0.45.1(@types/pg@8.16.0)(@vercel/postgres@0.10.0)(kysely@0.28.9)(pg@8.18.0(pg-native@3.5.2))(postgres@3.4.8))(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
       creem: 0.4.0
-      zod: 4.3.5
+      zod: 4.3.6
 
-  '@creem_io/better-auth@0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3(pg-native@3.5.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.5)':
+  '@creem_io/better-auth@0.0.12(better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(creem@0.4.0)(zod@4.3.6)':
     dependencies:
-      better-auth: 1.4.7(drizzle-kit@0.31.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3(pg-native@3.5.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1))
+      better-auth: 1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
       creem: 0.4.0
-      zod: 4.3.5
-
-  '@discoveryjs/json-ext@0.5.7': {}
+      zod: 4.3.6
 
   '@drizzle-team/brocli@0.10.2': {}
 
@@ -16660,29 +16588,29 @@ snapshots:
       react-dom: 19.2.4(react@19.2.4)
       vitest: 4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.16.3(pg-native@3.5.2))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vitest@4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1)):
+  better-auth@1.4.7(drizzle-kit@0.31.8)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.18.0(pg-native@3.5.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)):
     dependencies:
-      '@better-auth/core': 1.4.7(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.5(zod@4.3.5))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
-      '@better-auth/telemetry': 1.4.7(@better-auth/core@1.4.7(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.5(zod@4.3.5))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
+      '@better-auth/core': 1.4.7(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.5(zod@4.3.6))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0)
+      '@better-auth/telemetry': 1.4.7(@better-auth/core@1.4.7(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.5(zod@4.3.6))(jose@6.1.3)(kysely@0.28.9)(nanostores@1.1.0))
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
       '@noble/ciphers': 2.1.1
       '@noble/hashes': 2.0.1
-      better-call: 1.1.5(zod@4.3.5)
+      better-call: 1.1.5(zod@4.3.6)
       defu: 6.1.4
       jose: 6.1.3
       kysely: 0.28.9
       nanostores: 1.1.0
-      zod: 4.3.5
+      zod: 4.3.6
     optionalDependencies:
       drizzle-kit: 0.31.8
-      next: 16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      pg: 8.16.3(pg-native@3.5.2)
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-      vitest: 4.0.16(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.1)
+      next: 16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      pg: 8.18.0(pg-native@3.5.2)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      vitest: 4.0.18(@types/node@25.2.3)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  better-call@1.1.5(zod@4.3.5):
+  better-call@1.1.5(zod@4.3.6):
     dependencies:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
@@ -16974,8 +16902,6 @@ snapshots:
   commander@4.1.1: {}
 
   commander@5.1.0: {}
-
-  commander@7.2.0: {}
 
   commander@8.3.0: {}
 
@@ -20751,7 +20677,7 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.4(react@19.2.4)
 
-  react-scan@0.4.3(@types/react@19.2.8)(next@16.1.1(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react-router-dom@6.30.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-router@7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(rollup@4.55.1):
+  react-scan@0.4.3(@types/react@19.2.14)(next@16.1.6(@babel/core@7.28.4)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router-dom@6.30.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-router@7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(rollup@4.57.1):
     dependencies:
       '@babel/core': 7.28.4
       '@babel/generator': 7.28.3
@@ -20760,9 +20686,9 @@ snapshots:
       '@clack/prompts': 0.8.2
       '@pivanov/utils': 0.0.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@preact/signals': 1.3.2(preact@10.27.2)
-      '@rollup/pluginutils': 5.3.0(rollup@4.55.1)
-      '@types/node': 20.19.26
-      bippy: 0.3.27(@types/react@19.2.8)(react@19.2.3)
+      '@rollup/pluginutils': 5.3.0(rollup@4.57.1)
+      '@types/node': 20.19.33
+      bippy: 0.3.27(@types/react@19.2.14)(react@19.2.4)
       esbuild: 0.25.11
       estree-walker: 3.0.3
       kleur: 4.1.5
@@ -20782,7 +20708,7 @@ snapshots:
       - rollup
       - supports-color
 
-  react-scan@0.4.3(@types/react@19.2.8)(next@16.1.1(@babel/core@7.28.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react-router-dom@6.30.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-router@7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react@19.2.3)(rollup@2.79.2):
+  react-scan@0.4.3(@types/react@19.2.14)(next@16.1.6(@babel/core@7.29.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react-router-dom@6.30.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-router@7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(rollup@2.79.2):
     dependencies:
       '@babel/core': 7.28.4
       '@babel/generator': 7.28.3
@@ -20792,8 +20718,8 @@ snapshots:
       '@pivanov/utils': 0.0.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@preact/signals': 1.3.2(preact@10.27.2)
       '@rollup/pluginutils': 5.3.0(rollup@2.79.2)
-      '@types/node': 20.19.26
-      bippy: 0.3.27(@types/react@19.2.8)(react@19.2.3)
+      '@types/node': 20.19.33
+      bippy: 0.3.27(@types/react@19.2.14)(react@19.2.4)
       esbuild: 0.25.11
       estree-walker: 3.0.3
       kleur: 4.1.5
@@ -22031,7 +21957,7 @@ snapshots:
       magic-string-ast: 1.0.3
       unplugin: 3.0.0
 
-  unplugin-dts@1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rolldown@1.0.0-beta.53)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)):
+  unplugin-dts@1.0.0-beta.6(@microsoft/api-extractor@7.52.13(@types/node@25.2.3))(esbuild@0.25.12)(rollup@4.57.1)(typescript@5.9.3)(vite@8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)):
     dependencies:
       '@rollup/pluginutils': 5.3.0(rollup@4.57.1)
       '@volar/typescript': 2.4.23
@@ -22045,7 +21971,6 @@ snapshots:
     optionalDependencies:
       '@microsoft/api-extractor': 7.52.13(@types/node@25.2.3)
       esbuild: 0.25.12
-      rolldown: 1.0.0-beta.53
       rollup: 4.57.1
       vite: 8.0.0-beta.0(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
     transitivePeerDependencies:
