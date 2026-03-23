@@ -40,6 +40,24 @@ function normalizeUrlToOrigin(value: string | undefined | null): string | null {
   }
 }
 
+function normalizeUrlToBase(value: string | undefined | null): string | null {
+  if (!value) return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(withProtocol)
+    const pathname = parsed.pathname.replace(/\/+$|^\/+/, '')
+    const suffix = pathname ? `/${pathname}` : ''
+    return `${parsed.origin}${suffix}`
+  } catch {
+    return null
+  }
+}
+
 function resolveSiteConfigPath(siteConfigPath: string | undefined, repoRoot: string): string {
   if (!siteConfigPath) return path.resolve(repoRoot, 'config.json')
   return path.isAbsolute(siteConfigPath) ? siteConfigPath : path.resolve(repoRoot, siteConfigPath)
@@ -85,7 +103,7 @@ export class CloudflareMiddlewareVendor extends OgVendor {
   }
 
   private normalizeStorageOrigin(): string {
-    const normalized = normalizeUrlToOrigin(this.options.storageURL)
+    const normalized = normalizeUrlToBase(this.options.storageURL)
     if (!normalized) {
       throw new Error('CloudflareMiddleware vendor requires a valid storageURL (e.g., https://cdn.example.com)')
     }
