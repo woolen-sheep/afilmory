@@ -13,6 +13,7 @@ import { HDRBadge } from '~/modules/media/HDRBadge'
 import { LivePhotoBadge } from '~/modules/media/LivePhotoBadge'
 import { LivePhotoVideo } from '~/modules/media/LivePhotoVideo'
 
+import { ContainedImageFrame } from './ContainedImageFrame'
 import { DOMImageViewer } from './DOMImageViewer'
 import {
   createContextMenuItems,
@@ -22,6 +23,7 @@ import {
   useScaleIndicator,
   useWebGLLoadingState,
 } from './hooks'
+import { PhotoRegionsOverlay } from './PhotoRegionsOverlay'
 import type { ProgressiveImageProps, WebGLImageViewerRef } from './types'
 
 export const ProgressiveImage = ({
@@ -41,6 +43,10 @@ export const ProgressiveImage = ({
   shouldRenderHighRes = true,
   videoSource,
   shouldAutoPlayVideoOnce = false,
+  regions = [],
+  regionOrientation,
+  showAllRegions = false,
+  enableRegionHover = true,
   isHDR = false,
   loadingIndicatorRef,
 }: ProgressiveImageProps) => {
@@ -112,6 +118,9 @@ export const ProgressiveImage = ({
   const isHDRSupported = useMediaQuery('(dynamic-range: high)')
   // Only use HDR if the browser supports it and the image is HDR
   const shouldUseHDR = isHDR && isHDRSupported
+  const hasRegions = regions.length > 0
+  const shouldUseDOMViewer = hasVideo || shouldUseHDR || hasRegions
+  const shouldRenderThumbnailPhase = Boolean(thumbnailSrc && (!highResLoaded || !blobSrc || !isActiveImage || error))
 
   return (
     <div
@@ -124,17 +133,33 @@ export const ProgressiveImage = ({
     >
       {/* 缩略图 - 在高分辨率图片未加载或加载失败时显示 */}
       {thumbnailSrc && (!isHighResImageRendered || error) && (
-        <img
-          ref={thumbnailRef}
-          src={thumbnailSrc}
-          key={thumbnailSrc}
-          alt={alt}
-          className={clsxm(
-            'absolute inset-0 h-full w-full object-contain transition-opacity duration-300',
-            isThumbnailLoaded ? 'opacity-100' : 'opacity-0',
+        <ContainedImageFrame
+          width={width}
+          height={height}
+          className="absolute inset-0 flex h-full w-full items-center justify-center overflow-visible"
+        >
+          <img
+            ref={thumbnailRef}
+            src={thumbnailSrc}
+            key={thumbnailSrc}
+            alt={alt}
+            className={clsxm(
+              'block size-full object-contain transition-opacity duration-300',
+              isThumbnailLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={handleThumbnailLoad}
+          />
+          {hasRegions && shouldRenderThumbnailPhase && (
+            <PhotoRegionsOverlay
+              regions={regions}
+              photoWidth={width}
+              photoHeight={height}
+              orientation={regionOrientation}
+              showAllBoxes={showAllRegions}
+              interactive={enableRegionHover}
+            />
           )}
-          onLoad={handleThumbnailLoad}
-        />
+        </ContainedImageFrame>
       )}
 
       {/* 高分辨率图片 - 只在成功加载且非错误状态时显示 */}
@@ -146,8 +171,8 @@ export const ProgressiveImage = ({
             showContextMenu(items, e)
           }}
         >
-          {/* LivePhoto/Motion Photo 或 HDR 模式使用 DOMImageViewer */}
-          {hasVideo || shouldUseHDR ? (
+          {/* LivePhoto/Motion Photo、HDR 或 Regions 模式使用 DOMImageViewer */}
+          {shouldUseDOMViewer ? (
             <DOMImageViewer
               ref={domImageViewerRef}
               onZoomChange={onDOMTransformed}
@@ -155,6 +180,8 @@ export const ProgressiveImage = ({
               maxZoom={maxZoom}
               src={blobSrc}
               alt={alt}
+              width={width}
+              height={height}
               highResLoaded={highResLoaded}
               onLoad={() => setState.setIsHighResImageRendered(true)}
             >
@@ -168,6 +195,16 @@ export const ProgressiveImage = ({
                   isCurrentImage={isCurrentImage}
                   onPlayingChange={setState.setIsLivePhotoPlaying}
                   shouldAutoPlayOnce={shouldAutoPlayVideoOnce}
+                />
+              )}
+              {hasRegions && (
+                <PhotoRegionsOverlay
+                  regions={regions}
+                  photoWidth={width}
+                  photoHeight={height}
+                  orientation={regionOrientation}
+                  showAllBoxes={showAllRegions}
+                  interactive={enableRegionHover}
                 />
               )}
             </DOMImageViewer>

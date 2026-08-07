@@ -29,10 +29,16 @@ async function main() {
 
   // 解析命令行参数
   const args = new Set(process.argv.slice(2))
+  const rawArgs = process.argv.slice(2)
   const isForceMode = args.has('--force')
   const isForceManifest = args.has('--force-manifest')
   const isForceThumbnails = args.has('--force-thumbnails')
   const disableUi = args.has('--no-ui')
+  const dryRun = args.has('--dry-run')
+  const keyContains = rawArgs
+    .filter((arg) => arg.startsWith('--key-contains='))
+    .map((arg) => arg.slice('--key-contains='.length))
+    .filter(Boolean)
 
   // 显示帮助信息
   if (args.has('--help') || args.has('-h')) {
@@ -45,6 +51,8 @@ async function main() {
   --force              强制重新处理所有照片
   --force-manifest     强制重新生成 manifest
   --force-thumbnails   强制重新生成缩略图
+  --dry-run            只处理并打印结果，不写入 manifest/缩略图，也不执行插件副作用
+  --key-contains=TEXT  仅处理 key 包含指定文本的照片，可重复传入多个
   --config             显示当前配置信息
   --help, -h          显示帮助信息
   --no-ui             使用传统日志输出（禁用 TUI）
@@ -53,6 +61,7 @@ async function main() {
   tsx src/core/cli.ts                           # 增量更新
   tsx src/core/cli.ts --force                   # 全量更新
   tsx src/core/cli.ts --force-thumbnails        # 强制重新生成缩略图
+  tsx src/core/cli.ts --dry-run --key-contains=中北美毛翅燕
   tsx src/core/cli.ts --config                  # 显示配置信息
 
 配置：
@@ -148,6 +157,12 @@ async function main() {
   logger.main.info(`⚡ 最大并发数：${finalConcurrency}`)
   logger.main.info(`🔧 处理模式：${processingMode}`)
   logger.main.info(`🏗️ 使用构建器：AfilmoryBuilder (适配器模式)`)
+  if (dryRun) {
+    logger.main.info('🧪 Dry-run 已启用')
+  }
+  if (keyContains.length > 0) {
+    logger.main.info(`🔎 Key 筛选：${keyContains.join(', ')}`)
+  }
 
   environmentCheck()
 
@@ -157,6 +172,8 @@ async function main() {
       isForceMode,
       isForceManifest,
       isForceThumbnails,
+      dryRun,
+      keyContains,
       concurrencyLimit,
       progressListener,
     })

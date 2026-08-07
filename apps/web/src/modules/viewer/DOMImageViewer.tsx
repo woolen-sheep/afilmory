@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { ReactZoomPanPinchRef, ReactZoomPanPinchState } from 'react-zoom-pan-pinch'
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch'
 
+import { ContainedImageFrame } from './ContainedImageFrame'
 import type { DOMImageViewerProps } from './types'
 
 export const DOMImageViewer: FC<DOMImageViewerProps> = ({
@@ -13,6 +14,8 @@ export const DOMImageViewer: FC<DOMImageViewerProps> = ({
   maxZoom,
   src,
   alt,
+  width,
+  height,
   highResLoaded,
   onLoad,
   children,
@@ -120,19 +123,27 @@ export const DOMImageViewer: FC<DOMImageViewerProps> = ({
           wrapperClass="!w-full !h-full !absolute !inset-0"
           contentClass="!w-full !h-full flex items-center justify-center"
         >
-          <img
-            src={src || undefined}
-            alt={alt}
-            className={clsxm(
-              'absolute inset-0 w-full h-full object-contain',
-              highResLoaded ? 'opacity-100' : 'opacity-0',
-            )}
-            draggable={false}
-            loading="eager"
-            decoding="async"
-            onLoad={onLoad}
-          />
-          {children}
+          <ContainedImageFrame
+            width={width}
+            height={height}
+            className="relative flex h-full w-full items-center justify-center overflow-visible"
+          >
+            <img
+              src={src || undefined}
+              alt={alt}
+              width={width}
+              height={height}
+              className={clsxm(
+                'block size-full select-none object-contain',
+                highResLoaded ? 'opacity-100' : 'opacity-0',
+              )}
+              draggable={false}
+              loading="eager"
+              decoding="async"
+              onLoad={onLoad}
+            />
+            {children}
+          </ContainedImageFrame>
         </TransformComponent>
       </TransformWrapper>
     </div>

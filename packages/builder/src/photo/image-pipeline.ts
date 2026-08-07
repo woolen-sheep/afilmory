@@ -12,6 +12,7 @@ import {
   isBitmap,
   preprocessImageBuffer,
 } from '../image/processor.js'
+import { extractEmbeddedXmpMetadata } from '../image/xmp.js'
 import type { PluginRunState } from '../plugins/manager.js'
 import { THUMBNAIL_PLUGIN_DATA_KEY } from '../plugins/thumbnail-storage/shared.js'
 import type { S3ObjectLike } from '../types/s3.js'
@@ -181,6 +182,7 @@ export async function executePhotoProcessingPipeline(
 
     // 4. 处理 EXIF 数据
     const exifData = await processExifData(imageBuffer, imageData.rawBuffer, photoKey, existingItem, options)
+    const xmpMetadata = extractEmbeddedXmpMetadata(imageData.rawBuffer)
 
     // 5. 检测 HDR GainMap（Ultra HDR 图片）
     const hasGainMap = detectGainMap({
@@ -218,7 +220,7 @@ export async function executePhotoProcessingPipeline(
       title: photoInfo.title,
       description: photoInfo.description,
       dateTaken: photoInfo.dateTaken,
-      tags: photoInfo.tags,
+      tags: mergeUniqueTags(photoInfo.tags, xmpMetadata.keywords),
       originalUrl: await storageManager.generatePublicUrl(photoKey),
       thumbnailUrl: thumbnailResult.thumbnailUrl,
       thumbHash: thumbnailResult.thumbHash ? compressUint8Array(thumbnailResult.thumbHash) : null,
@@ -230,6 +232,8 @@ export async function executePhotoProcessingPipeline(
       size: obj.Size || 0,
       digest: contentDigest,
       exif: exifData,
+      keywords: xmpMetadata.keywords,
+      regions: xmpMetadata.regions,
       toneAnalysis,
       location: existingItem?.location ?? null,
       // Video source (Motion Photo or Live Photo)
@@ -261,6 +265,25 @@ export async function executePhotoProcessingPipeline(
     loggers.image.error(`❌ 处理管道失败：${photoKey}`, error)
     return null
   }
+}
+
+function mergeUniqueTags(...groups: string[][]): string[] {
+  const seen = new Set<string>()
+  const merged: string[] = []
+
+  for (const group of groups) {
+    for (const value of group) {
+      const normalized = value.trim()
+      if (!normalized || seen.has(normalized)) {
+        continue
+      }
+
+      seen.add(normalized)
+      merged.push(normalized)
+    }
+  }
+
+  return merged
 }
 
 /**

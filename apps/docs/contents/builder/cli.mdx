@@ -2,7 +2,7 @@
 title: CLI & Run Modes
 description: Per-run flags, concurrency behavior, and cluster vs worker execution.
 createdAt: 2025-11-23T19:00:00+08:00
-lastModified: 2025-11-23T19:40:52+08:00
+lastModified: 2026-08-08T03:38:03+08:00
 order: 2
 ---
 
@@ -30,7 +30,17 @@ pnpm run build:manifest -- --config
 
 # Disable TUI, use plain logs
 pnpm run build:manifest -- --no-ui
+
+# Dry-run one photo family without writing manifest/thumbnails
+pnpm run build:manifest -- --dry-run --key-contains=中北美毛翅燕 --no-ui
 ```
+
+## Debugging & safe inspection
+
+- `--dry-run`: process photos and print results without saving the manifest, cleaning thumbnails, or running plugin side effects.
+- `--key-contains=TEXT`: only keep image objects whose storage key contains `TEXT`. You can pass this flag multiple times.
+
+This combination is useful when you want to inspect XMP extraction, region alignment, or one problematic file without overwriting the existing cache.
 
 ## Concurrency & execution model
 

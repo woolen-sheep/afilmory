@@ -48,8 +48,10 @@ export const PhotoViewer = ({
   const [isImageZoomed, setIsImageZoomed] = useState(false)
   const [isInspectorVisible, setIsInspectorVisible] = useState(!isMobile)
   const [currentBlobSrc, setCurrentBlobSrc] = useState<string | null>(null)
+  const [showAllRegions, setShowAllRegions] = useState(false)
 
   const currentPhoto = photos[currentIndex]
+  const hasRegions = Boolean(currentPhoto?.regions?.length)
 
   const {
     containerRef,
@@ -75,8 +77,13 @@ export const PhotoViewer = ({
       setIsImageZoomed(false)
       setIsInspectorVisible(!isMobile)
       setCurrentBlobSrc(null)
+      setShowAllRegions(false)
     }
   }, [isMobile, isOpen])
+
+  useEffect(() => {
+    setShowAllRegions(false)
+  }, [currentPhoto?.id])
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -235,6 +242,22 @@ export const PhotoViewer = ({
 
                     {/* 右侧按钮组 */}
                     <div className="flex items-center gap-2">
+                      {hasRegions && (
+                        <button
+                          type="button"
+                          className={`bg-material-ultra-thick pointer-events-auto flex size-8 items-center justify-center rounded-full text-white backdrop-blur-2xl duration-200 hover:bg-black/40 ${showAllRegions ? 'bg-accent/80 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_10px_30px_rgba(0,0,0,0.24)]' : ''}`}
+                          onClick={() => setShowAllRegions((visible) => !visible)}
+                          title={showAllRegions ? t('photo.regions.hide') : t('photo.regions.show')}
+                          aria-pressed={showAllRegions}
+                        >
+                          <span className="relative block size-[15px]">
+                            <span className="absolute inset-0 rounded-[4px] border border-current/90" />
+                            <span className="absolute top-[2px] left-[2px] h-[3px] w-[3px] rounded-full bg-current/90" />
+                            <span className="absolute right-[2px] bottom-[2px] h-[3px] w-[3px] rounded-full bg-current/60" />
+                          </span>
+                        </button>
+                      )}
+
                       {/* 分享按钮 */}
                       <ShareModal
                         photo={currentPhoto}
@@ -341,6 +364,10 @@ export const PhotoViewer = ({
                                     : { type: 'none' }
                               }
                               shouldAutoPlayVideoOnce={isCurrentImage}
+                              regions={photo.regions}
+                              showAllRegions={isCurrentImage ? showAllRegions : false}
+                              regionOrientation={photo.exif?.Orientation}
+                              enableRegionHover={isCurrentImage && !isMobile}
                               // HDR props
                               isHDR={photo.isHDR}
                             />

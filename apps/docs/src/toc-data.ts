@@ -197,6 +197,12 @@ export const tocData: FileToc[] = [
             children: [],
           },
           {
+            id: 'heading-xmp-regions',
+            level: 2,
+            text: 'XMP regions',
+            children: [],
+          },
+          {
             id: 'heading-how-to-run-it',
             level: 2,
             text: 'How to run it',
@@ -264,6 +270,12 @@ export const tocData: FileToc[] = [
             id: 'heading-commands',
             level: 2,
             text: 'Commands',
+            children: [],
+          },
+          {
+            id: 'heading-debugging-safe-inspection',
+            level: 2,
+            text: 'Debugging & safe inspection',
             children: [],
           },
           {
@@ -352,6 +364,12 @@ export const tocData: FileToc[] = [
             id: 'heading-outputs',
             level: 2,
             text: 'Outputs',
+            children: [],
+          },
+          {
+            id: 'heading-viewer-behavior-for-regions',
+            level: 2,
+            text: 'Viewer behavior for regions',
             children: [],
           },
           {

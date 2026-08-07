@@ -17,7 +17,7 @@
       "title": "CLI & Run Modes",
       "description": "Per-run flags, concurrency behavior, and cluster vs worker execution.",
       "createdAt": "2025-11-23T19:00:00+08:00",
-      "lastModified": "2025-11-23T19:40:52+08:00",
+      "lastModified": "2026-08-08T01:45:00+08:00",
       "order": "2"
     }
   },
@@ -61,7 +61,7 @@
       "title": "Processing Flow",
       "description": "End-to-end pipeline, ordering, and incremental rules backed by the code.",
       "createdAt": "2025-11-23T19:00:00+08:00",
-      "lastModified": "2025-11-23T19:40:52+08:00",
+      "lastModified": "2026-08-08T01:45:00+08:00",
       "order": "4"
     }
   },
@@ -202,9 +202,9 @@
     "title": "Builder",
     "meta": {
       "title": "Builder",
-      "description": "Overview of the photo pipeline and how to choose the right entrypoint for your run.",
+      "description": "Overview of the photo pipeline, XMP support, and how to choose the right entrypoint for your run.",
       "createdAt": "2025-11-14T22:10:00+08:00",
-      "lastModified": "2025-11-23T20:44:02+08:00",
+      "lastModified": "2026-08-08T01:45:00+08:00",
       "order": "40"
     }
   },

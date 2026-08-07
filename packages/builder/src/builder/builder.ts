@@ -27,6 +27,8 @@ export interface BuilderOptions {
   isForceMode: boolean
   isForceManifest: boolean
   isForceThumbnails: boolean
+  dryRun?: boolean
+  keyContains?: string[]
   concurrencyLimit?: number // 可选，如果未提供则使用配置文件中的默认值
   progressListener?: BuildProgressListener
 }
@@ -81,7 +83,9 @@ export class AfilmoryBuilder {
 
   async buildManifest(options: BuilderOptions): Promise<BuilderResult> {
     try {
-      await this.ensurePluginsReady()
+      if (!options.dryRun) {
+        await this.ensurePluginsReady()
+      }
       this.ensureStorageManager()
       return await this.#buildManifest(options)
     } catch (error) {
@@ -150,8 +154,12 @@ export class AfilmoryBuilder {
       })
 
       // 列出存储中的所有图片文件
-      const imageObjects = await storageManager.listImages()
-      logger.main.info(`存储中找到 ${imageObjects.length} 张照片`)
+      const listedImageObjects = await storageManager.listImages()
+      const imageObjects = this.filterImageObjectsByKey(listedImageObjects, options)
+      logger.main.info(`存储中找到 ${listedImageObjects.length} 张照片`)
+      if (imageObjects.length !== listedImageObjects.length) {
+        logger.main.info(`调试筛选后剩余 ${imageObjects.length} 张照片`)
+      }
 
       await this.emitPluginEvent(runState, 'afterImagesListed', {
         options,
@@ -232,7 +240,7 @@ export class AfilmoryBuilder {
             resultType: 'skipped',
           })
 
-          manifest.push(item)
+          manifest.push(this.normalizeManifestItem(item))
         }
       } else {
         const totalTasks = tasksToProcess.length
@@ -395,12 +403,12 @@ export class AfilmoryBuilder {
           if (s3ImageKeys.has(key) && !manifest.some((m) => m.s3Key === key)) {
             await this.emitPluginEvent(runState, 'beforeAddManifestItem', {
               options,
-              item,
+              item: this.normalizeManifestItem(item),
               pluginData: {},
               resultType: 'skipped',
             })
 
-            manifest.push(item)
+            manifest.push(this.normalizeManifestItem(item))
             skippedCount++
           }
         }
@@ -430,33 +438,39 @@ export class AfilmoryBuilder {
       })
 
       // 检测并处理已删除的图片
-      deletedCount = await handleDeletedPhotos(manifest)
+      if (!options.dryRun) {
+        deletedCount = await handleDeletedPhotos(manifest)
 
-      await this.emitPluginEvent(runState, 'afterCleanup', {
-        options,
-        manifest,
-        deletedCount,
-      })
+        await this.emitPluginEvent(runState, 'afterCleanup', {
+          options,
+          manifest,
+          deletedCount,
+        })
+      }
 
       // 生成相机和镜头集合
       const cameras = this.generateCameraCollection(manifest)
       const lenses = this.generateLensCollection(manifest)
 
-      await this.emitPluginEvent(runState, 'beforeSaveManifest', {
-        options,
-        manifest,
-        cameras,
-        lenses,
-      })
+      if (!options.dryRun) {
+        await this.emitPluginEvent(runState, 'beforeSaveManifest', {
+          options,
+          manifest,
+          cameras,
+          lenses,
+        })
 
-      await saveManifest(manifest, cameras, lenses)
+        await saveManifest(manifest, cameras, lenses)
 
-      await this.emitPluginEvent(runState, 'afterSaveManifest', {
-        options,
-        manifest,
-        cameras,
-        lenses,
-      })
+        await this.emitPluginEvent(runState, 'afterSaveManifest', {
+          options,
+          manifest,
+          cameras,
+          lenses,
+        })
+      } else {
+        logger.main.info('🧪 Dry-run 模式：跳过 manifest 保存、缩略图清理和插件副作用')
+      }
 
       if (this.config.system.observability.showDetailedStats) {
         this.logBuildResults(
@@ -506,7 +520,10 @@ export class AfilmoryBuilder {
           cameras: [],
           lenses: [],
         }
-      : await loadExistingManifest()
+      : await loadExistingManifest({
+          allowWrite: !options.dryRun,
+          allowMigrate: !options.dryRun,
+        })
   }
 
   private async detectLivePhotos(
@@ -745,6 +762,15 @@ export class AfilmoryBuilder {
         continue
       }
 
+      const needsXmpBackfill =
+        !Array.isArray((existingItem as Partial<PhotoManifestItem>).keywords) ||
+        !Array.isArray((existingItem as Partial<PhotoManifestItem>).regions)
+
+      if (needsXmpBackfill) {
+        tasksToProcess.push(obj)
+        continue
+      }
+
       // 检查缩略图是否存在，如果不存在或强制刷新缩略图则需要处理
       const hasThumbnail = await thumbnailExists(photoId)
       if (!hasThumbnail || options.isForceThumbnails) {
@@ -756,6 +782,29 @@ export class AfilmoryBuilder {
     }
 
     return tasksToProcess
+  }
+
+  private filterImageObjectsByKey(
+    imageObjects: Awaited<ReturnType<StorageManager['listImages']>>,
+    options: BuilderOptions,
+  ): Awaited<ReturnType<StorageManager['listImages']>> {
+    const keyContains = options.keyContains?.map((value) => value.trim()).filter(Boolean) ?? []
+    if (keyContains.length === 0) {
+      return imageObjects
+    }
+
+    return imageObjects.filter((item) => keyContains.some((segment) => item.key.includes(segment)))
+  }
+
+  private normalizeManifestItem(item: PhotoManifestItem): PhotoManifestItem {
+    const keywords = Array.isArray((item as Partial<PhotoManifestItem>).keywords) ? item.keywords : []
+    const regions = Array.isArray((item as Partial<PhotoManifestItem>).regions) ? item.regions : []
+
+    return {
+      ...item,
+      keywords,
+      regions,
+    }
   }
 
   /**

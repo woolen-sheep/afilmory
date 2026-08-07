@@ -13,6 +13,7 @@ export interface PhotoProcessorOptions {
   isForceMode: boolean
   isForceManifest: boolean
   isForceThumbnails: boolean
+  dryRun?: boolean
 }
 
 // 处理单张照片

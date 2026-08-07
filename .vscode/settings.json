@@ -71,5 +71,9 @@
   ],
   "exportall.config.folderListener": [
     "/apps/ssr/src/schemas"
-  ]
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "pnpm": true,
+    "git add": true
+  }
 }
