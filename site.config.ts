@@ -8,6 +8,7 @@ export interface SiteConfig {
   description: string
   url: string
   accentColor: string
+  photoReactionEnabled?: boolean
   author: Author
   social?: Social
   feed?: Feed
@@ -84,6 +85,7 @@ const defaultConfig: SiteConfig = {
   description: 'A modern photo gallery website.',
   url: 'https://afilmory.art',
   accentColor: '#007bff',
+  photoReactionEnabled: true,
   author: {
     name: 'Afilmory',
     url: 'https://afilmory.art/',

@@ -12,6 +12,7 @@ import type { Swiper as SwiperType } from 'swiper'
 import { Navigation, Virtual } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
+import { siteConfig } from '~/config'
 import { useMobile } from '~/hooks/useMobile'
 import type { LoadingIndicatorRef } from '~/modules/inspector/LoadingIndicator'
 import { LoadingIndicator } from '~/modules/inspector/LoadingIndicator'
@@ -321,7 +322,7 @@ export const PhotoViewer = ({
                       const hideCurrentImage = isEntryAnimating && isCurrentImage
                       return (
                         <SwiperSlide key={photo.id} className="flex items-center justify-center" virtualIndex={index}>
-                          <ReactionRail photoId={photo.id} />
+                          {siteConfig.photoReactionEnabled !== false && <ReactionRail photoId={photo.id} />}
                           <m.div
                             initial={{ opacity: 0.5, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
