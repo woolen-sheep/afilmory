@@ -1,6 +1,6 @@
 import { LoadingState } from './enum'
 import { ImageViewerEngineBase } from './ImageViewerEngineBase'
-import type { DebugInfo, WebGLImageViewerProps } from './interface'
+import type { DebugInfo, WebGLImageViewerProps, WebGLViewportState } from './interface'
 import { createShader, FRAGMENT_SHADER_SOURCE, VERTEX_SHADER_SOURCE } from './shaders'
 import TextureWorkerRaw from './texture.worker?raw'
 
@@ -18,6 +18,11 @@ interface TileInfo {
   lastUsed: number // 最后使用时间
   isLoading: boolean // 是否正在加载
   priority: number // 优先级（距离视口中心的距离）
+}
+
+interface PendingTileRequest {
+  key: TileKey
+  priority: number
 }
 
 // 瓦片键值
@@ -83,13 +88,15 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   // 配置和回调
   private config: Required<WebGLImageViewerProps>
   private onZoomChange?: (originalScale: number, relativeScale: number) => void
+  private onViewportChange?: (viewport: WebGLViewportState) => void
   private onImageCopied?: () => void
   private onLoadingStateChange?: (
     isLoading: boolean,
     state?: LoadingState,
     quality?: 'high' | 'medium' | 'low' | 'unknown',
   ) => void
-  private onDebugUpdate?: React.RefObject<(debugInfo: any) => void>
+
+  private onDebugUpdate?: React.RefObject<(debugInfo: DebugInfo) => void>
 
   // 当前质量状态
   private currentQuality: 'high' | 'medium' | 'low' | 'unknown' = 'unknown'
@@ -123,12 +130,13 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   // 瓦片系统
   private tileCache = new Map<TileKey, TileInfo>()
   private loadingTiles = new Map<TileKey, { priority: number }>()
-  private pendingTileRequests: Array<{ key: TileKey; priority: number }> = []
+  private pendingTileRequests: PendingTileRequest[] = []
   private tileProcessingFrameId: number | null = null
 
   // 可视区域信息
   private currentVisibleTiles = new Set<TileKey>()
   private lastViewportHash = ''
+  private lastViewportNotificationKey = ''
 
   // Promise resolvers for loadImage
   private loadImageResolve: (() => void) | null = null
@@ -143,6 +151,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     this.canvas = canvas
     this.config = config
     this.onZoomChange = config.onZoomChange
+    this.onViewportChange = config.onViewportChange
     this.onImageCopied = config.onImageCopied
     this.onLoadingStateChange = config.onLoadingStateChange
     this.onDebugUpdate = onDebugUpdate
@@ -188,7 +197,10 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       this.resizeObserver.disconnect()
     }
     this.resizeObserver = new ResizeObserver((e) => {
-      if (e[0].target !== this.canvas) return
+      if (e[0].target !== this.canvas) {
+        return
+      }
+
       this.boundResizeCanvas()
     })
     this.resizeObserver.observe(this.canvas)
@@ -299,7 +311,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private bindQuadBuffers() {
-    if (!this.positionBuffer || !this.texCoordBuffer) return
+    if (!this.positionBuffer || !this.texCoordBuffer) {
+      return
+    }
 
     const { gl } = this
     gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
@@ -309,7 +323,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private bindOutlineBuffer() {
-    if (!this.tileOutlineBuffer) return
+    if (!this.tileOutlineBuffer) {
+      return
+    }
 
     const { gl } = this
     gl.bindBuffer(gl.ARRAY_BUFFER, this.tileOutlineBuffer)
@@ -372,8 +388,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
           this.lodTextures.set(lodLevel, texture)
           this.texture = texture
           this.currentLOD = lodLevel
-          this.currentQuality =
-            SIMPLE_LOD_LEVELS[lodLevel].scale >= 2 ? 'high' : SIMPLE_LOD_LEVELS[lodLevel].scale >= 1 ? 'medium' : 'low'
+          this.currentQuality
+            = SIMPLE_LOD_LEVELS[lodLevel].scale >= 2 ? 'high' : SIMPLE_LOD_LEVELS[lodLevel].scale >= 1 ? 'medium' : 'low'
         }
 
         this.imageLoaded = true
@@ -384,7 +400,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
         if (this.loadImageResolve) {
           this.loadImageResolve()
         }
-      } catch (error) {
+      }
+      catch (error) {
         if (this.loadImageReject) {
           this.loadImageReject(error as Error)
         }
@@ -445,10 +462,12 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
         if (this.currentVisibleTiles.has(key)) {
           this.render()
         }
-      } else if (loadingInfo) {
+      }
+      else if (loadingInfo) {
         this.loadingTiles.delete(key)
       }
-    } else if (type === 'tile-error') {
+    }
+    else if (type === 'tile-error') {
       const { key, error } = payload
       console.warn(`Worker failed to create tile: ${key}`, error)
       this.loadingTiles.delete(key)
@@ -470,7 +489,6 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       this.loadImageResolve = resolve
       this.loadImageReject = reject
 
-      console.info('[Engine] Posting "load-image" to worker', this.worker)
       this.worker?.postMessage({
         type: 'load-image',
         payload: { url },
@@ -481,7 +499,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   private setupInitialScaling() {
     if (this.config.centerOnInit) {
       this.fitImageToScreen()
-    } else {
+    }
+    else {
       const fitToScreenScale = this.getFitToScreenScale()
       this.scale = fitToScreenScale * this.config.initialScale
     }
@@ -491,7 +510,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     const { gl } = this
 
     const texture = gl.createTexture()
-    if (!texture) return null
+    if (!texture) {
+      return null
+    }
 
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
@@ -515,7 +536,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     if (this.isAnimating && this.animationStartLOD > -1) {
       return this.animationStartLOD
     }
-    if (!this.imageLoaded) return 1
+    if (!this.imageLoaded) {
+      return 1
+    }
 
     const requiredScale = this.scale * this.devicePixelRatio
 
@@ -533,7 +556,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
   // 缓动函数
   private easeOutQuart(t: number): number {
-    return 1 - Math.pow(1 - t, 4)
+    return 1 - (1 - t) ** 4
   }
 
   private startAnimation(
@@ -575,7 +598,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private animate() {
-    if (!this.isAnimating) return
+    if (!this.isAnimating) {
+      return
+    }
 
     const now = performance.now()
     const elapsed = now - this.animationStartTime
@@ -591,7 +616,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
     if (progress < 1) {
       requestAnimationFrame(() => this.animate())
-    } else {
+    }
+    else {
       this.isAnimating = false
       this.animationStartLOD = -1
       this.scale = this.targetScale
@@ -631,7 +657,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private constrainImagePosition() {
-    if (!this.config.limitToBounds) return
+    if (!this.config.limitToBounds) {
+      return
+    }
 
     const fitScale = this.getFitToScreenScale()
 
@@ -659,7 +687,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
     if (this.scale < absoluteMinScale) {
       this.scale = absoluteMinScale
-    } else if (this.scale > effectiveMaxScale) {
+    }
+    else if (this.scale > effectiveMaxScale) {
       this.scale = effectiveMaxScale
     }
 
@@ -671,7 +700,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     return `${x}-${y}-${lodLevel}`
   }
 
-  private getTileGridSize(lodLevel: number): { cols: number; rows: number } {
+  private getTileGridSize(lodLevel: number): { cols: number, rows: number } {
     const lodConfig = SIMPLE_LOD_LEVELS[lodLevel]
     const scaledWidth = this.imageWidth * lodConfig.scale
     const scaledHeight = this.imageHeight * lodConfig.scale
@@ -688,7 +717,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     lodLevel: number
     priority: number
   }> {
-    if (!this.imageLoaded) return []
+    if (!this.imageLoaded) {
+      return []
+    }
 
     const lodLevel = this.selectOptimalLOD()
     const { cols, rows } = this.getTileGridSize(lodLevel)
@@ -739,7 +770,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
         // 计算瓦片中心到视口中心的距离作为优先级
         const tileCenterX = (x + 0.5) * tileWidthInImage
         const tileCenterY = (y + 0.5) * tileHeightInImage
-        const distance = Math.sqrt(Math.pow(tileCenterX - viewCenterX, 2) + Math.pow(tileCenterY - viewCenterY, 2))
+        const distance = Math.hypot(tileCenterX - viewCenterX, tileCenterY - viewCenterY)
 
         visibleTiles.push({
           x,
@@ -772,15 +803,17 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       const key = this.getTileKey(tile.x, tile.y, tile.lodLevel)
       newVisibleTiles.add(key)
 
-      const pendingRequest = this.pendingTileRequests.find((request) => request.key === key)
+      const pendingRequest = this.pendingTileRequests.find(request => request.key === key)
 
       if (!this.tileCache.has(key) && !this.loadingTiles.has(key) && !pendingRequest) {
         this.pendingTileRequests.push({ key, priority: tile.priority })
         addedNewRequest = true
-      } else if (pendingRequest) {
+      }
+      else if (pendingRequest) {
         // Update priority when tile stays in view to keep ordering useful
         pendingRequest.priority = Math.min(pendingRequest.priority, tile.priority)
-      } else if (this.tileCache.has(key)) {
+      }
+      else if (this.tileCache.has(key)) {
         // 更新使用时间
         const tileInfo = this.tileCache.get(key)!
         tileInfo.lastUsed = performance.now()
@@ -930,6 +963,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
     // 更新调试信息
     this.updateDebugInfo()
+    this.notifyViewportChange()
 
     // 定期更新瓦片缓存
     if (!this.isAnimating && performance.now() - this.lastTileUpdateTime > 100) {
@@ -1010,12 +1044,19 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
   public updateCallbacks({
     onZoomChange,
+    onViewportChange,
     onImageCopied,
     onLoadingStateChange,
-  }: Pick<Required<WebGLImageViewerProps>, 'onZoomChange' | 'onImageCopied' | 'onLoadingStateChange'>) {
+  }: Pick<
+    Required<WebGLImageViewerProps>,
+    'onZoomChange' | 'onViewportChange' | 'onImageCopied' | 'onLoadingStateChange'
+  >) {
     this.onZoomChange = onZoomChange
+    this.onViewportChange = onViewportChange
     this.onImageCopied = onImageCopied
     this.onLoadingStateChange = onLoadingStateChange
+    this.lastViewportNotificationKey = ''
+    this.notifyViewportChange()
   }
 
   public updateInteractionConfig({
@@ -1092,7 +1133,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private updateDebugInfo() {
-    if (!this.onDebugUpdate?.current) return
+    if (!this.onDebugUpdate?.current) {
+      return
+    }
 
     const fitToScreenScale = this.getFitToScreenScale()
     const relativeScale = this.scale / fitToScreenScale
@@ -1117,7 +1160,7 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       cacheKeys: Array.from(this.tileCache.keys()),
       visibleKeys: Array.from(this.currentVisibleTiles),
       loadingKeys: Array.from(this.loadingTiles.keys()),
-      pendingKeys: this.pendingTileRequests.map((req) => req.key),
+      pendingKeys: this.pendingTileRequests.map(req => req.key),
     }
 
     this.onDebugUpdate.current({
@@ -1160,6 +1203,41 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     }
   }
 
+  private notifyViewportChange() {
+    if (!this.onViewportChange || !this.imageLoaded) {
+      return
+    }
+
+    const fitToScreenScale = this.getFitToScreenScale()
+    const relativeScale = this.scale / fitToScreenScale
+    const notificationKey = [
+      this.canvasWidth,
+      this.canvasHeight,
+      this.imageWidth,
+      this.imageHeight,
+      this.scale.toFixed(4),
+      this.translateX.toFixed(2),
+      this.translateY.toFixed(2),
+    ].join(':')
+
+    if (notificationKey === this.lastViewportNotificationKey) {
+      return
+    }
+
+    this.lastViewportNotificationKey = notificationKey
+    this.onViewportChange({
+      containerWidth: this.canvasWidth,
+      containerHeight: this.canvasHeight,
+      imageWidth: this.imageWidth,
+      imageHeight: this.imageHeight,
+      scale: this.scale,
+      relativeScale,
+      fitToScreenScale,
+      translateX: this.translateX,
+      translateY: this.translateY,
+    })
+  }
+
   private notifyLoadingStateChange(
     isLoading: boolean,
 
@@ -1188,7 +1266,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       this.isAnimating = false
       this.animationStartLOD = -1
     }
-    if (this.config.panning.disabled) return
+    if (this.config.panning.disabled) {
+      return
+    }
 
     this.isDragging = true
     this.lastMouseX = e.clientX
@@ -1196,7 +1276,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private handleMouseMove(e: MouseEvent) {
-    if (!this.isDragging || this.config.panning.disabled) return
+    if (!this.isDragging || this.config.panning.disabled) {
+      return
+    }
 
     const deltaX = e.clientX - this.lastMouseX
     const deltaY = e.clientY - this.lastMouseY
@@ -1217,7 +1299,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
   private handleWheel(e: WheelEvent) {
     e.preventDefault()
-    if (this.config.wheel.wheelDisabled) return
+    if (this.config.wheel.wheelDisabled) {
+      return
+    }
 
     if (this.isAnimating) {
       this.isAnimating = false
@@ -1234,10 +1318,15 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
   private handleDoubleClick(e: MouseEvent) {
     e.preventDefault()
-    if (this.config.doubleClick.disabled) return
+    if (this.config.doubleClick.disabled) {
+      return
+    }
 
     const now = Date.now()
-    if (now - this.lastDoubleClickTime < 300) return
+    if (now - this.lastDoubleClickTime < 300) {
+      return
+    }
+
     this.lastDoubleClickTime = now
 
     const rect = this.canvas.getBoundingClientRect()
@@ -1248,8 +1337,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private handleTouchStart(e: TouchEvent) {
-    const canHandleSingleTouch =
-      e.touches.length === 1 && (!this.config.panning.disabled || !this.config.doubleClick.disabled)
+    const canHandleSingleTouch
+      = e.touches.length === 1 && (!this.config.panning.disabled || !this.config.doubleClick.disabled)
     const canHandlePinch = e.touches.length === 2 && !this.config.pinch.disabled
 
     if (!canHandleSingleTouch && !canHandlePinch) {
@@ -1269,10 +1358,10 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
       // 检测双击
       if (
-        !this.config.doubleClick.disabled &&
-        now - this.lastTouchTime < 300 &&
-        Math.abs(touch.clientX - this.lastTouchX) < 50 &&
-        Math.abs(touch.clientY - this.lastTouchY) < 50
+        !this.config.doubleClick.disabled
+        && now - this.lastTouchTime < 300
+        && Math.abs(touch.clientX - this.lastTouchX) < 50
+        && Math.abs(touch.clientY - this.lastTouchY) < 50
       ) {
         this.handleTouchDoubleTap(touch.clientX, touch.clientY)
         this.lastTouchTime = 0
@@ -1288,13 +1377,12 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       this.lastTouchTime = now
       this.lastTouchX = touch.clientX
       this.lastTouchY = touch.clientY
-    } else if (e.touches.length === 2 && !this.config.pinch.disabled) {
+    }
+    else if (e.touches.length === 2 && !this.config.pinch.disabled) {
       this.isDragging = false
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
-      this.lastTouchDistance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2),
-      )
+      this.lastTouchDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
     }
   }
 
@@ -1313,14 +1401,13 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
       this.constrainImagePosition()
       this.render()
-    } else if (e.touches.length === 2 && !this.config.pinch.disabled) {
+    }
+    else if (e.touches.length === 2 && !this.config.pinch.disabled) {
       e.preventDefault()
 
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
-      const distance = Math.sqrt(
-        Math.pow(touch2.clientX - touch1.clientX, 2) + Math.pow(touch2.clientY - touch1.clientY, 2),
-      )
+      const distance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY)
 
       if (this.lastTouchDistance > 0) {
         const scaleFactor = distance / this.lastTouchDistance
@@ -1341,7 +1428,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
   }
 
   private handleTouchDoubleTap(clientX: number, clientY: number) {
-    if (this.config.doubleClick.disabled) return
+    if (this.config.doubleClick.disabled) {
+      return
+    }
 
     const rect = this.canvas.getBoundingClientRect()
     const touchX = clientX - rect.left
@@ -1370,7 +1459,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
 
         this.startAnimation(targetScale, targetTranslateX, targetTranslateY, this.config.doubleClick.animationTime)
         this.isOriginalSize = false
-      } else {
+      }
+      else {
         const targetScale = Math.max(absoluteMinScale, Math.min(effectiveMaxScale, originalSizeScale))
         const zoomX = (x - this.canvasWidth / 2 - this.translateX) / this.scale
         const zoomY = (y - this.canvasHeight / 2 - this.translateY) / this.scale
@@ -1380,7 +1470,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
         this.startAnimation(targetScale, targetTranslateX, targetTranslateY, this.config.doubleClick.animationTime)
         this.isOriginalSize = true
       }
-    } else {
+    }
+    else {
       this.zoomAt(x, y, this.config.doubleClick.step, true)
     }
   }
@@ -1393,7 +1484,9 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
     const userMaxScale = fitToScreenScale * this.config.maxScale
     const effectiveMaxScale = Math.max(userMaxScale, originalSizeScale)
 
-    if (newScale < absoluteMinScale || newScale > effectiveMaxScale) return
+    if (newScale < absoluteMinScale || newScale > effectiveMaxScale) {
+      return
+    }
 
     if (animated && this.config.smooth) {
       const zoomX = (x - this.canvasWidth / 2 - this.translateX) / this.scale
@@ -1402,7 +1495,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       const targetTranslateY = y - this.canvasHeight / 2 - zoomY * newScale
 
       this.startAnimation(newScale, targetTranslateX, targetTranslateY)
-    } else {
+    }
+    else {
       const zoomX = (x - this.canvasWidth / 2 - this.translateX) / this.scale
       const zoomY = (y - this.canvasHeight / 2 - this.translateY) / this.scale
 
@@ -1432,7 +1526,8 @@ export class WebGLImageViewerEngine extends ImageViewerEngineBase {
       if (this.onImageCopied) {
         this.onImageCopied()
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to copy image to clipboard:', error)
     }
   }

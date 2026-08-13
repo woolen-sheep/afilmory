@@ -1,7 +1,8 @@
 import { clsxm } from '@afilmory/utils'
+import type { WebGLViewportState } from '@afilmory/webgl-viewer'
 import { WebGLImageViewer } from '@afilmory/webgl-viewer'
 import { AnimatePresence, m } from 'motion/react'
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import { useMediaQuery } from 'usehooks-ts'
@@ -12,8 +13,10 @@ import { isMobileDevice } from '~/lib/device-viewport'
 import { canUseWebGL } from '~/lib/feature'
 import { HDRBadge } from '~/modules/media/HDRBadge'
 import { LivePhotoBadge } from '~/modules/media/LivePhotoBadge'
+import type { LivePhotoVideoHandle } from '~/modules/media/LivePhotoVideo'
 import { LivePhotoVideo } from '~/modules/media/LivePhotoVideo'
 
+import { ContainedImageFrame } from './ContainedImageFrame'
 import { DOMImageViewer } from './DOMImageViewer'
 import { getProgressiveImageVisualReady, isThumbnailElementVisuallyReady } from './entry-animation-state'
 import {
@@ -24,6 +27,7 @@ import {
   useScaleIndicator,
   useWebGLLoadingState,
 } from './hooks'
+import { PhotoRegionsOverlay } from './PhotoRegionsOverlay'
 import type { ProgressiveImageProps, WebGLImageViewerRef } from './types'
 
 const loadedThumbnailSrcSet = new Set<string>()
@@ -49,6 +53,10 @@ export const ProgressiveImage = ({
   shouldRenderHighRes = true,
   videoSource,
   shouldAutoPlayVideoOnce = false,
+  regions = [],
+  regionOrientation,
+  showAllRegions = false,
+  enableRegionHover = true,
   isHDR = false,
   loadingIndicatorRef,
 }: ProgressiveImageProps) => {
@@ -75,8 +83,12 @@ export const ProgressiveImage = ({
   // Refs
   const thumbnailRef = useRef<HTMLImageElement>(null)
   const webglImageViewerRef = useRef<WebGLImageViewerRef | null>(null)
+  const webglViewerHostRef = useRef<HTMLDivElement>(null)
+  const webglRegionsFrameRef = useRef<HTMLDivElement>(null)
   const domImageViewerRef = useRef<ReactZoomPanPinchRef>(null)
-  const livePhotoRef = useRef<any>(null)
+  const livePhotoRef = useRef<LivePhotoVideoHandle | null>(null)
+  const [hasWebGLRegionsViewport, setHasWebGLRegionsViewport] = useState(false)
+  const hasWebGLRegionsViewportRef = useRef(false)
 
   const resolvedSrc = useMemo(() => {
     if (src.startsWith('/')) {
@@ -125,14 +137,14 @@ export const ProgressiveImage = ({
     }
 
     const thumbnailElement = thumbnailRef.current
-    const isAlreadyLoaded =
-      loadedThumbnailSrcSet.has(thumbnailSrc) ||
-      isThumbnailElementVisuallyReady({
-        currentSrc: thumbnailElement?.currentSrc,
-        naturalWidth: thumbnailElement?.naturalWidth,
-        src: thumbnailElement?.src,
-        thumbnailSrc,
-      })
+    const isAlreadyLoaded
+      = loadedThumbnailSrcSet.has(thumbnailSrc)
+        || isThumbnailElementVisuallyReady({
+          currentSrc: thumbnailElement?.currentSrc,
+          naturalWidth: thumbnailElement?.naturalWidth,
+          src: thumbnailElement?.src,
+          thumbnailSrc,
+        })
 
     if (isAlreadyLoaded) {
       loadedThumbnailSrcSet.add(thumbnailSrc)
@@ -148,6 +160,9 @@ export const ProgressiveImage = ({
   const isHDRSupported = useMediaQuery('(dynamic-range: high)')
   // Only use HDR if the browser supports it and the image is HDR
   const shouldUseHDR = isHDR && isHDRSupported
+  const hasRegions = regions.length > 0
+  const shouldUseDOMViewer = hasVideo || shouldUseHDR
+  const shouldRenderThumbnailPhase = Boolean(thumbnailSrc && (!highResLoaded || !blobSrc || !isActiveImage || error))
 
   const webglPinchConfig = useMemo(
     () => ({
@@ -184,6 +199,135 @@ export const ProgressiveImage = ({
     onVisualReadyChange?.(isVisualReady)
   }, [isVisualReady, onVisualReadyChange])
 
+  const handleWebGLViewportChange = useCallback((viewport: WebGLViewportState) => {
+    const overlayFrame = webglRegionsFrameRef.current
+    if (!overlayFrame) {
+      return
+    }
+
+    const renderedWidth = viewport.imageWidth * viewport.scale
+    const renderedHeight = viewport.imageHeight * viewport.scale
+    const left = viewport.containerWidth / 2 + viewport.translateX - renderedWidth / 2
+    const top = viewport.containerHeight / 2 + viewport.translateY - renderedHeight / 2
+
+    overlayFrame.style.width = `${renderedWidth}px`
+    overlayFrame.style.height = `${renderedHeight}px`
+    overlayFrame.style.transform = `translate3d(${left}px, ${top}px, 0)`
+
+    if (!hasWebGLRegionsViewportRef.current) {
+      hasWebGLRegionsViewportRef.current = true
+      setHasWebGLRegionsViewport(true)
+    }
+  }, [])
+
+  const getWebGLCanvas = useCallback(() => {
+    const canvas = webglViewerHostRef.current?.querySelector('canvas')
+    return canvas instanceof HTMLCanvasElement ? canvas : null
+  }, [])
+
+  const shouldForwardWebGLEvent = useCallback((target: EventTarget | null, canvas: HTMLCanvasElement) => {
+    return target instanceof Node && !canvas.contains(target)
+  }, [])
+
+  const dispatchMouseEventToCanvas = useCallback(
+    (type: 'mousedown' | 'mousemove' | 'mouseup' | 'dblclick', event: React.MouseEvent<HTMLDivElement>) => {
+      const canvas = getWebGLCanvas()
+      if (!canvas || !shouldForwardWebGLEvent(event.target, canvas)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      canvas.dispatchEvent(
+        new MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          button: event.button,
+          buttons: event.buttons,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+        }),
+      )
+    },
+    [getWebGLCanvas, shouldForwardWebGLEvent],
+  )
+
+  const dispatchTouchEventToCanvas = useCallback(
+    (type: 'touchstart' | 'touchmove' | 'touchend', event: React.TouchEvent<HTMLDivElement>) => {
+      const canvas = getWebGLCanvas()
+      if (!canvas || !shouldForwardWebGLEvent(event.target, canvas) || typeof TouchEvent === 'undefined') {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      canvas.dispatchEvent(
+        new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches: Array.from(event.nativeEvent.touches),
+          targetTouches: Array.from(event.nativeEvent.targetTouches),
+          changedTouches: Array.from(event.nativeEvent.changedTouches),
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+        }),
+      )
+    },
+    [getWebGLCanvas, shouldForwardWebGLEvent],
+  )
+
+  const handleWebGLRegionWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      const canvas = webglViewerHostRef.current?.querySelector('canvas')
+      if (!(canvas instanceof HTMLCanvasElement) || !shouldForwardWebGLEvent(event.target, canvas)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      canvas.dispatchEvent(
+        new WheelEvent('wheel', {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          deltaX: event.deltaX,
+          deltaY: event.deltaY,
+          deltaZ: event.deltaZ,
+          deltaMode: event.deltaMode,
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+        }),
+      )
+    },
+    [shouldForwardWebGLEvent],
+  )
+
+  useLayoutEffect(() => {
+    hasWebGLRegionsViewportRef.current = false
+    setHasWebGLRegionsViewport(false)
+
+    const overlayFrame = webglRegionsFrameRef.current
+    if (!overlayFrame) {
+      return
+    }
+
+    overlayFrame.style.width = '0px'
+    overlayFrame.style.height = '0px'
+    overlayFrame.style.transform = 'translate3d(0px, 0px, 0)'
+  }, [blobSrc, highResLoaded, isActiveImage, src])
+
   return (
     <div
       className={clsxm('relative overflow-hidden', className)}
@@ -195,18 +339,34 @@ export const ProgressiveImage = ({
     >
       {/* 缩略图 - 在高分辨率图片未加载或加载失败时显示 */}
       {thumbnailSrc && (!isHighResImageRendered || error) && (
-        <img
-          ref={thumbnailRef}
-          src={thumbnailSrc}
-          key={thumbnailSrc}
-          alt={alt}
-          className={clsxm(
-            'absolute inset-0 h-full w-full object-contain transition-opacity duration-300',
-            disableThumbnailTransition && 'transition-none',
-            isThumbnailLoaded ? 'opacity-100' : 'opacity-0',
+        <ContainedImageFrame
+          width={width}
+          height={height}
+          className="absolute inset-0 flex h-full w-full items-center justify-center overflow-visible"
+        >
+          <img
+            ref={thumbnailRef}
+            src={thumbnailSrc}
+            key={thumbnailSrc}
+            alt={alt}
+            className={clsxm(
+              'block size-full object-contain transition-opacity duration-300',
+              disableThumbnailTransition && 'transition-none',
+              isThumbnailLoaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={handleThumbnailLoad}
+          />
+          {hasRegions && shouldRenderThumbnailPhase && (
+            <PhotoRegionsOverlay
+              regions={regions}
+              photoWidth={width}
+              photoHeight={height}
+              orientation={regionOrientation}
+              showAllBoxes={showAllRegions}
+              interactive={enableRegionHover}
+            />
           )}
-          onLoad={handleThumbnailLoad}
-        />
+        </ContainedImageFrame>
       )}
 
       {/* 高分辨率图片 - 只在成功加载且非错误状态时显示 */}
@@ -219,7 +379,7 @@ export const ProgressiveImage = ({
           }}
         >
           {/* LivePhoto/Motion Photo 或 HDR 模式使用 DOMImageViewer */}
-          {hasVideo || shouldUseHDR ? (
+          {shouldUseDOMViewer ? (
             <DOMImageViewer
               ref={domImageViewerRef}
               onZoomChange={onDOMTransformed}
@@ -229,6 +389,8 @@ export const ProgressiveImage = ({
               enablePan={enablePan}
               src={blobSrc}
               alt={alt}
+              width={width}
+              height={height}
               highResLoaded={highResLoaded}
               onLoad={() => setState.setIsHighResImageRendered(true)}
             >
@@ -244,28 +406,72 @@ export const ProgressiveImage = ({
                   shouldAutoPlayOnce={shouldAutoPlayVideoOnce}
                 />
               )}
+              {hasRegions && (
+                <PhotoRegionsOverlay
+                  regions={regions}
+                  photoWidth={width}
+                  photoHeight={height}
+                  orientation={regionOrientation}
+                  showAllBoxes={showAllRegions}
+                  interactive={enableRegionHover}
+                />
+              )}
             </DOMImageViewer>
           ) : (
             /* 非 LivePhoto 模式使用 WebGLImageViewer */
-            <WebGLImageViewer
-              ref={webglImageViewerRef}
-              src={blobSrc}
+            <div
+              ref={webglViewerHostRef}
               className="absolute inset-0 h-full w-full"
-              width={width}
-              height={height}
-              initialScale={1}
-              minScale={minZoom}
-              maxScale={maxZoom}
-              pinch={webglPinchConfig}
-              doubleClick={webglDoubleClickConfig}
-              panning={webglPanningConfig}
-              limitToBounds={true}
-              centerOnInit={true}
-              smooth={true}
-              onZoomChange={onTransformed}
-              onLoadingStateChange={handleWebGLLoadingStateChange}
-              debug={import.meta.env.DEV && !isMobileDevice}
-            />
+              onWheelCapture={handleWebGLRegionWheel}
+              onMouseDownCapture={event => dispatchMouseEventToCanvas('mousedown', event)}
+              onMouseMoveCapture={event => dispatchMouseEventToCanvas('mousemove', event)}
+              onMouseUpCapture={event => dispatchMouseEventToCanvas('mouseup', event)}
+              onDoubleClickCapture={event => dispatchMouseEventToCanvas('dblclick', event)}
+              onTouchStartCapture={event => dispatchTouchEventToCanvas('touchstart', event)}
+              onTouchMoveCapture={event => dispatchTouchEventToCanvas('touchmove', event)}
+              onTouchEndCapture={event => dispatchTouchEventToCanvas('touchend', event)}
+            >
+              <WebGLImageViewer
+                ref={webglImageViewerRef}
+                src={blobSrc}
+                className="absolute inset-0 h-full w-full"
+                width={width}
+                height={height}
+                initialScale={1}
+                minScale={minZoom}
+                maxScale={maxZoom}
+                pinch={webglPinchConfig}
+                doubleClick={webglDoubleClickConfig}
+                panning={webglPanningConfig}
+                limitToBounds={true}
+                centerOnInit={true}
+                smooth={true}
+                onZoomChange={onTransformed}
+                onViewportChange={handleWebGLViewportChange}
+                onLoadingStateChange={handleWebGLLoadingStateChange}
+                debug={import.meta.env.DEV && !isMobileDevice}
+              />
+              {hasRegions && (
+                <div className="pointer-events-none absolute inset-0 z-15">
+                  <div
+                    ref={webglRegionsFrameRef}
+                    className={clsxm(
+                      'absolute left-0 top-0 overflow-visible transition-opacity duration-150',
+                      hasWebGLRegionsViewport ? 'opacity-100' : 'opacity-0',
+                    )}
+                  >
+                    <PhotoRegionsOverlay
+                      regions={regions}
+                      photoWidth={width}
+                      photoHeight={height}
+                      orientation={regionOrientation}
+                      showAllBoxes={showAllRegions}
+                      interactive={enableRegionHover}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -304,7 +510,8 @@ export const ProgressiveImage = ({
             exit={{ opacity: 0, y: 10 }}
             className="pointer-events-none absolute bottom-4 left-4 z-20 flex items-center gap-0.5 rounded bg-black/50 px-3 py-1 text-lg text-white tabular-nums"
           >
-            <SlidingNumber number={currentScale} decimalPlaces={1} />x
+            <SlidingNumber number={currentScale} decimalPlaces={1} />
+            <span>x</span>
           </m.div>
         )}
       </AnimatePresence>

@@ -1,7 +1,7 @@
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { PickedExif } from '@afilmory/typing'
+import type { ExiftoolXmpArea, ExiftoolXmpDimensions, ExiftoolXmpRegionInfo, PhotoRegion, PhotoXmpMetadata, PickedExif } from '@afilmory/typing'
 import { isNil, noop } from 'es-toolkit'
 import type { ExifDateTime, Tags } from 'exiftool-vendored'
 import { ExifTool } from 'exiftool-vendored'
@@ -12,6 +12,11 @@ const exiftool = new ExifTool({
   ...(process.env.EXIFTOOL_PATH ? { exiftoolPath: process.env.EXIFTOOL_PATH } : {}),
   taskTimeoutMillis: 30000,
 })
+
+const EMPTY_XMP_METADATA: PhotoXmpMetadata = {
+  keywords: [],
+  regions: [],
+}
 
 let isExiftoolClosed = false
 const closeExiftool = () => {
@@ -135,7 +140,30 @@ const pickKeys: Array<keyof Tags | (string & {})> = [
   'MicroVideoVersion',
   'MicroVideoOffset',
   'MicroVideoPresentationTimestampUs',
+  // XMP keyword / region fields
+  'Subject',
+  'Keywords',
+  'WeightedFlatSubject',
+  'HierarchicalSubject',
+  'RegionInfo',
 ]
+
+export function extractXmpMetadataFromExif(exifData: PickedExif | null | undefined): PhotoXmpMetadata {
+  if (!exifData) {
+    return EMPTY_XMP_METADATA
+  }
+
+  return {
+    keywords: mergeUniqueStrings(
+      normalizeStringArray(exifData.Subject),
+      normalizeStringArray(exifData.Keywords),
+      normalizeStringArray(exifData.WeightedFlatSubject),
+      normalizeStringArray(exifData.HierarchicalSubject),
+    ),
+    regions: parseRegionInfo(exifData.RegionInfo),
+  }
+}
+
 function handleExifData(exifData: Tags): PickedExif {
   const date = {
     DateTimeOriginal: formatExifDate(exifData.DateTimeOriginal),
@@ -209,4 +237,97 @@ const formatExifDate = (date: string | ExifDateTime | undefined) => {
   }
 
   return date.toISOString()
+}
+
+function parseRegionInfo(regionInfo: ExiftoolXmpRegionInfo | undefined): PhotoRegion[] {
+  if (!regionInfo?.RegionList || regionInfo.RegionList.length === 0) {
+    return []
+  }
+
+  const appliedToDimensions = parseAppliedToDimensions(regionInfo.AppliedToDimensions)
+
+  return regionInfo.RegionList
+    .map((region) => {
+      const name = typeof region.Name === 'string' ? region.Name.trim() : ''
+      const type = normalizeRegionType(region.Type)
+      const area = parseRegionArea(region.Area)
+
+      if (!name && !type && !area) {
+        return null
+      }
+
+      return {
+        name,
+        ...(type ? { type } : {}),
+        area,
+        appliedToDimensions,
+      } satisfies PhotoRegion
+    })
+    .filter((region): region is PhotoRegion => region !== null)
+}
+
+function parseAppliedToDimensions(dimensions: ExiftoolXmpDimensions | undefined) {
+  if (!dimensions?.W || !dimensions?.H || !dimensions.Unit) {
+    return null
+  }
+
+  return {
+    width: dimensions.W,
+    height: dimensions.H,
+    unit: dimensions.Unit,
+  }
+}
+
+function parseRegionArea(area: ExiftoolXmpArea | undefined) {
+  if (!area?.Unit) {
+    return null
+  }
+
+  if (typeof area.X !== 'number' || typeof area.Y !== 'number' || typeof area.W !== 'number' || typeof area.H !== 'number') {
+    return null
+  }
+
+  return {
+    x: area.X,
+    y: area.Y,
+    width: area.W,
+    height: area.H,
+    unit: area.Unit,
+  }
+}
+
+function normalizeRegionType(type: string | undefined): string | undefined {
+  if (!type) {
+    return undefined
+  }
+
+  const normalized = type.trim()
+  const groupedType = normalized.match(/\(([^)]+)\)\s*$/)?.[1]?.trim()
+  return groupedType || normalized || undefined
+}
+
+function normalizeStringArray(input: string[] | undefined): string[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input.map((value) => value.trim()).filter(Boolean)
+}
+
+function mergeUniqueStrings(...groups: string[][]): string[] {
+  const seen = new Set<string>()
+  const merged: string[] = []
+
+  for (const group of groups) {
+    for (const value of group) {
+      if (!value || seen.has(value)) {
+        continue
+      }
+
+      seen.add(value)
+      merged.push(value)
+    }
+  }
+
+  return merged
 }

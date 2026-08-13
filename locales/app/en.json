@@ -393,6 +393,8 @@
   "photo.live.tooltip.mobile.main": "Tap the Live badge to play Live Photo",
   "photo.live.tooltip.mobile.zoom": "Tap the Live badge to play Live Photo / Double-tap to zoom",
   "photo.reaction.success": "Reaction added",
+  "photo.regions.hide": "Hide region boxes",
+  "photo.regions.show": "Show region boxes",
   "photo.share.actions": "Actions",
   "photo.share.copy.failed": "Copy failed",
   "photo.share.copy.link": "Copy Link",

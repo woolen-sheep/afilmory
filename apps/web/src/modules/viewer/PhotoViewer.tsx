@@ -79,6 +79,8 @@ export const PhotoViewer = ({
   const [entrySuppressedPhotoId] = useState(() => (disableEntryTransition ? (photos[currentIndex]?.id ?? null) : null))
 
   const currentPhoto = photos[currentIndex]
+  const [showAllRegions, setShowAllRegions] = useState(false)
+  const hasRegions = Boolean(currentPhoto?.regions?.length)
   const {
     containerRef,
     entryTransition,
@@ -100,13 +102,13 @@ export const PhotoViewer = ({
     triggerElement,
     currentItem: currentPhoto
       ? {
-          id: currentPhoto.id,
-          width: currentPhoto.width,
-          height: currentPhoto.height,
-          previewSrc: currentPhoto.thumbnailUrl,
-          fullSrc: currentPhoto.originalUrl,
-          thumbHash: currentPhoto.thumbHash,
-        }
+        id: currentPhoto.id,
+        width: currentPhoto.width,
+        height: currentPhoto.height,
+        previewSrc: currentPhoto.thumbnailUrl,
+        fullSrc: currentPhoto.originalUrl,
+        thumbHash: currentPhoto.thumbHash,
+      }
       : undefined,
     currentDisplaySrc: currentBlobSrc,
     isMobile,
@@ -205,8 +207,14 @@ export const PhotoViewer = ({
       if (!dragDismissExitFrame) {
         resetMobileInteractions()
       }
+      setShowAllRegions(false)
+      setShowAllRegions(false)
     }
   }, [dragDismissExitFrame, isMobile, isOpen, resetMobileInteractions])
+
+  useEffect(() => {
+    setShowAllRegions(false)
+  }, [currentPhoto?.id])
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
@@ -374,14 +382,14 @@ export const PhotoViewer = ({
                   style={
                     isMobile
                       ? {
-                          x: dismissX,
-                          y: viewerLiftY,
-                          scale: viewerScale,
-                          rotate: viewerRotate,
-                          borderRadius: viewerBorderRadius,
-                          transformOrigin: DEFAULT_MOBILE_VIEWER_MEDIA_TRANSFORM_ORIGIN,
-                          touchAction: 'none',
-                        }
+                        x: dismissX,
+                        y: viewerLiftY,
+                        scale: viewerScale,
+                        rotate: viewerRotate,
+                        borderRadius: viewerBorderRadius,
+                        transformOrigin: DEFAULT_MOBILE_VIEWER_MEDIA_TRANSFORM_ORIGIN,
+                        touchAction: 'none',
+                      }
                       : undefined
                   }
                 >
@@ -416,6 +424,23 @@ export const PhotoViewer = ({
 
                       {/* 右侧按钮组 */}
                       <div className="flex items-center gap-2">
+                        {hasRegions && (
+                          <button
+                            type="button"
+                            disabled={!isMobileChromeInteractive}
+                            className={`bg-material-ultra-thick ${mobileChromeButtonClassName} flex size-8 items-center justify-center rounded-full text-white backdrop-blur-2xl duration-200 hover:bg-black/40 disabled:cursor-default ${showAllRegions ? 'bg-accent/80 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_10px_30px_rgba(0,0,0,0.24)]' : ''}`}
+                            onClick={() => setShowAllRegions((visible) => !visible)}
+                            title={showAllRegions ? t('photo.regions.hide') : t('photo.regions.show')}
+                            aria-pressed={showAllRegions}
+                          >
+                            <span className="relative block size-[15px]">
+                              <span className="absolute inset-0 rounded-[4px] border border-current/90" />
+                              <span className="absolute top-[2px] left-[2px] h-[3px] w-[3px] rounded-full bg-current/90" />
+                              <span className="absolute right-[2px] bottom-[2px] h-[3px] w-[3px] rounded-full bg-current/60" />
+                            </span>
+                          </button>
+                        )}
+
                         {/* 分享按钮 */}
                         <ShareModal
                           photo={currentPhoto}
@@ -436,7 +461,8 @@ export const PhotoViewer = ({
                         {!isMobile && !isInspectorVisible && (
                           <button
                             type="button"
-                            className="bg-material-ultra-thick pointer-events-auto flex size-8 items-center justify-center rounded-full text-white backdrop-blur-2xl duration-200 hover:bg-black/40"
+                            disabled={!isMobileChromeInteractive}
+                            className={`bg-material-ultra-thick ${mobileChromeButtonClassName} flex size-8 items-center justify-center rounded-full text-white backdrop-blur-2xl duration-200 hover:bg-black/40 disabled:cursor-default`}
                             onClick={() => setIsDesktopInspectorVisible(true)}
                             title={t('inspector.tab.info')}
                           >
@@ -513,7 +539,7 @@ export const PhotoViewer = ({
                             })
                             const suppressSlideEntry
                               = (isCurrentImage && entryTransition?.variant === 'entry')
-                                || photo.id === entrySuppressedPhotoId
+                              || photo.id === entrySuppressedPhotoId
                             return (
                               <SwiperSlide
                                 key={photo.id}
@@ -551,20 +577,24 @@ export const PhotoViewer = ({
                                     videoSource={
                                       photo.video?.type === 'motion-photo'
                                         ? {
-                                            type: 'motion-photo',
-                                            imageUrl: photo.originalUrl,
-                                            offset: photo.video.offset,
-                                            size: photo.video.size,
-                                            presentationTimestamp: photo.video.presentationTimestamp,
-                                          }
+                                          type: 'motion-photo',
+                                          imageUrl: photo.originalUrl,
+                                          offset: photo.video.offset,
+                                          size: photo.video.size,
+                                          presentationTimestamp: photo.video.presentationTimestamp,
+                                        }
                                         : photo.video?.type === 'live-photo'
                                           ? {
-                                              type: 'live-photo',
-                                              videoUrl: photo.video.videoUrl,
-                                            }
+                                            type: 'live-photo',
+                                            videoUrl: photo.video.videoUrl,
+                                          }
                                           : { type: 'none' }
                                     }
                                     shouldAutoPlayVideoOnce={isCurrentImage}
+                                    regions={photo.regions}
+                                    regionOrientation={photo.exif?.Orientation}
+                                    showAllRegions={isCurrentImage ? showAllRegions : false}
+                                    enableRegionHover={isCurrentImage && !isMobile}
                                     isHDR={photo.isHDR}
                                   />
                                 </m.div>

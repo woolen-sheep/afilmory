@@ -64,6 +64,8 @@ export type {
   FujiRecipe,
   LensInfo,
   PhotoManifestItem,
+  PhotoRegion,
+  PhotoXmpMetadata,
   PickedExif,
   ToneAnalysis,
 } from '@afilmory/typing'

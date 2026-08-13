@@ -16,7 +16,7 @@ import {
   defaultWheelConfig,
 } from './constants'
 import DebugInfoComponent from './DebugInfo'
-import type { WebGLImageViewerProps, WebGLImageViewerRef } from './interface'
+import type { DebugInfo, WebGLImageViewerProps, WebGLImageViewerRef } from './interface'
 import { WebGLImageViewerEngine } from './WebGLImageViewerEngine'
 
 /**
@@ -41,19 +41,20 @@ export const WebGLImageViewer = ({
   alignmentAnimation = defaultAlignmentAnimation,
   velocityAnimation = defaultVelocityAnimation,
   onZoomChange,
+  onViewportChange,
   onImageCopied,
   onLoadingStateChange,
   debug = false,
   ...divProps
-}: WebGLImageViewerProps &
-  Omit<React.HTMLAttributes<HTMLDivElement>, 'className'> & {
+}: WebGLImageViewerProps
+  & Omit<React.HTMLAttributes<HTMLDivElement>, 'className'> & {
     ref?: React.RefObject<WebGLImageViewerRef | null>
   }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const viewerRef = useRef<WebGLImageViewerEngine | null>(null)
   const [tileOutlineEnabled, setTileOutlineEnabled] = useState(false)
 
-  const setDebugInfoRef = useRef((() => {}) as (debugInfo: any) => void)
+  const setDebugInfoRef = useRef<(debugInfo: DebugInfo) => void>(() => {})
   const debugEnabled = Boolean(debug)
 
   const mergedWheel = useMemo(
@@ -105,15 +106,20 @@ export const WebGLImageViewer = ({
   )
 
   const callbacksRef = useRef<
-    Pick<Required<WebGLImageViewerProps>, 'onZoomChange' | 'onImageCopied' | 'onLoadingStateChange'>
+    Pick<
+      Required<WebGLImageViewerProps>,
+      'onZoomChange' | 'onViewportChange' | 'onImageCopied' | 'onLoadingStateChange'
+    >
   >({
     onZoomChange: onZoomChange || (() => {}),
+    onViewportChange: onViewportChange || (() => {}),
     onImageCopied: onImageCopied || (() => {}),
     onLoadingStateChange: onLoadingStateChange || (() => {}),
   })
 
   callbacksRef.current = {
     onZoomChange: onZoomChange || (() => {}),
+    onViewportChange: onViewportChange || (() => {}),
     onImageCopied: onImageCopied || (() => {}),
     onLoadingStateChange: onLoadingStateChange || (() => {}),
   }
@@ -142,7 +148,9 @@ export const WebGLImageViewer = ({
   }))
 
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current) {
+      return
+    }
 
     const webGLImageViewerEngine = new WebGLImageViewerEngine(
       canvasRef.current,
@@ -164,6 +172,7 @@ export const WebGLImageViewer = ({
         alignmentAnimation: mergedAlignmentAnimation,
         velocityAnimation: mergedVelocityAnimation,
         onZoomChange: callbacksRef.current.onZoomChange,
+        onViewportChange: callbacksRef.current.onViewportChange,
         onImageCopied: callbacksRef.current.onImageCopied,
         onLoadingStateChange: callbacksRef.current.onLoadingStateChange,
         debug: debugEnabled,
@@ -178,7 +187,8 @@ export const WebGLImageViewer = ({
       webGLImageViewerEngine.loadImage(src, preknownWidth, preknownHeight).catch(console.error)
       viewerRef.current = webGLImageViewerEngine
       setTileOutlineEnabled(webGLImageViewerEngine.isTileOutlineEnabled())
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to initialize WebGL Image Viewer:', error)
     }
 
@@ -203,7 +213,7 @@ export const WebGLImageViewer = ({
 
   useEffect(() => {
     viewerRef.current?.updateCallbacks(callbacksRef.current)
-  }, [onZoomChange, onImageCopied, onLoadingStateChange])
+  }, [onZoomChange, onViewportChange, onImageCopied, onLoadingStateChange])
 
   useEffect(() => {
     viewerRef.current?.updateInteractionConfig(interactionConfigRef.current)

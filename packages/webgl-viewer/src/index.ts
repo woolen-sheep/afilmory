@@ -8,6 +8,7 @@ export type {
   VelocityAnimationConfig,
   WebGLImageViewerProps,
   WebGLImageViewerRef,
+  WebGLViewportState,
   WheelConfig,
 } from './interface'
 export { WebGLImageViewer } from './WebGLImageViewer'

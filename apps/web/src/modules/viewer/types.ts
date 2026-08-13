@@ -1,3 +1,5 @@
+import type { PhotoRegion } from '@afilmory/builder'
+
 import type { ImageLoaderManager } from '~/lib/image-loader-manager'
 
 import type { LoadingIndicatorRef } from '../inspector'
@@ -37,6 +39,10 @@ export interface ProgressiveImageProps {
   // Video source (Live Photo or Motion Photo)
   videoSource?: VideoSource
   shouldAutoPlayVideoOnce?: boolean
+  regions?: PhotoRegion[]
+  regionOrientation?: number
+  showAllRegions?: boolean
+  enableRegionHover?: boolean
 
   // HDR 相关 props
   isHDR?: boolean
@@ -60,6 +66,8 @@ export interface DOMImageViewerProps {
   enablePan?: boolean
   src: string
   alt: string
+  width?: number
+  height?: number
   highResLoaded: boolean
   onLoad?: () => void
   children?: React.ReactNode

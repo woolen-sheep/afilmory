@@ -28,6 +28,19 @@ export interface VelocityAnimationConfig {
   sensitivity: number
   animationTime: number
 }
+
+export interface WebGLViewportState {
+  containerWidth: number
+  containerHeight: number
+  imageWidth: number
+  imageHeight: number
+  scale: number
+  relativeScale: number
+  fitToScreenScale: number
+  translateX: number
+  translateY: number
+}
+
 export interface WebGLImageViewerProps {
   src: string
   className?: string
@@ -46,6 +59,7 @@ export interface WebGLImageViewerProps {
   alignmentAnimation?: AlignmentAnimationConfig
   velocityAnimation?: VelocityAnimationConfig
   onZoomChange?: (originalScale: number, relativeScale: number) => void
+  onViewportChange?: (viewport: WebGLViewportState) => void
   onImageCopied?: () => void
   onLoadingStateChange?: (
     isLoading: boolean,
@@ -68,8 +82,8 @@ export interface DebugInfo {
   translateY: number
   currentLOD: number
   lodLevels: number
-  canvasSize: { width: number; height: number }
-  imageSize: { width: number; height: number }
+  canvasSize: { width: number, height: number }
+  imageSize: { width: number, height: number }
   fitToScreenScale: number
   userMaxScale: number
   effectiveMaxScale: number
