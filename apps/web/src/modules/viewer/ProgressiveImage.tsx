@@ -55,6 +55,7 @@ export const ProgressiveImage = ({
   shouldAutoPlayVideoOnce = false,
   regions = [],
   regionOrientation,
+  regionAccentColor,
   showAllRegions = false,
   enableRegionHover = true,
   isHDR = false,
@@ -362,6 +363,7 @@ export const ProgressiveImage = ({
               photoWidth={width}
               photoHeight={height}
               orientation={regionOrientation}
+              accentColor={regionAccentColor}
               showAllBoxes={showAllRegions}
               interactive={enableRegionHover}
             />
@@ -412,6 +414,7 @@ export const ProgressiveImage = ({
                   photoWidth={width}
                   photoHeight={height}
                   orientation={regionOrientation}
+                  accentColor={regionAccentColor}
                   showAllBoxes={showAllRegions}
                   interactive={enableRegionHover}
                 />
@@ -452,11 +455,11 @@ export const ProgressiveImage = ({
                 debug={import.meta.env.DEV && !isMobileDevice}
               />
               {hasRegions && (
-                <div className="pointer-events-none absolute inset-0 z-15">
+                <div className="pointer-events-none absolute inset-0 z-20">
                   <div
                     ref={webglRegionsFrameRef}
                     className={clsxm(
-                      'absolute left-0 top-0 overflow-visible transition-opacity duration-150',
+                      'absolute left-0 top-0 overflow-visible transition-opacity duration-200',
                       hasWebGLRegionsViewport ? 'opacity-100' : 'opacity-0',
                     )}
                   >
@@ -465,6 +468,7 @@ export const ProgressiveImage = ({
                       photoWidth={width}
                       photoHeight={height}
                       orientation={regionOrientation}
+                      accentColor={regionAccentColor}
                       showAllBoxes={showAllRegions}
                       interactive={enableRegionHover}
                     />

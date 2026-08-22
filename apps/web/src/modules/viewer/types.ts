@@ -8,10 +8,16 @@ import type { LivePhotoVideoHandle } from '../media'
 export const SHOW_SCALE_INDICATOR_DURATION = 1000
 
 // Video source 的 sum type：Live Photo 或 Motion Photo
-export type VideoSource =
-  | { type: 'live-photo'; videoUrl: string }
-  | { type: 'motion-photo'; imageUrl: string; offset: number; size?: number; presentationTimestamp?: number }
-  | { type: 'none' }
+export type VideoSource
+  = | { type: 'live-photo', videoUrl: string }
+    | {
+      type: 'motion-photo'
+      imageUrl: string
+      offset: number
+      size?: number
+      presentationTimestamp?: number
+    }
+    | { type: 'none' }
 
 export interface ProgressiveImageProps {
   src: string
@@ -41,6 +47,7 @@ export interface ProgressiveImageProps {
   shouldAutoPlayVideoOnce?: boolean
   regions?: PhotoRegion[]
   regionOrientation?: number
+  regionAccentColor?: string
   showAllRegions?: boolean
   enableRegionHover?: boolean
 
@@ -59,7 +66,7 @@ export interface WebGLImageViewerRef {
 
 export interface DOMImageViewerProps {
   ref?: React.RefObject<import('react-zoom-pan-pinch').ReactZoomPanPinchRef | null>
-  onZoomChange?: (isZoomed: boolean, scale: number) => any
+  onZoomChange?: (isZoomed: boolean, scale: number) => void
   minZoom: number
   maxZoom: number
   enableZoom?: boolean

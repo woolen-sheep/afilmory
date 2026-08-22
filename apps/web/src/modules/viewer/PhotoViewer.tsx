@@ -4,7 +4,7 @@ import 'swiper/css'
 import 'swiper/css/navigation'
 
 import { Thumbhash } from '@afilmory/ui'
-import { Spring } from '@afilmory/utils'
+import { clsxm, Spring } from '@afilmory/utils'
 import type { AnimationFrameRect, MobileViewerDismissSnapshot } from '@afilmory/viewer-motion'
 import {
   createInspectorSheetPresentation,
@@ -23,8 +23,9 @@ import type { Swiper as SwiperType } from 'swiper'
 import { Navigation, Virtual } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
-import { injectConfig } from '~/config'
+import { injectConfig, siteConfig } from '~/config'
 import { useMobile } from '~/hooks/useMobile'
+import { deriveAccentFromSources } from '~/lib/color'
 import type { LoadingIndicatorRef } from '~/modules/inspector/LoadingIndicator'
 import { LoadingIndicator } from '~/modules/inspector/LoadingIndicator'
 import { PhotoInspector } from '~/modules/inspector/PhotoInspector'
@@ -77,10 +78,12 @@ export const PhotoViewer = ({
   const [currentBlobSrc, setCurrentBlobSrc] = useState<string | null>(null)
   const [dragDismissExitFrame, setDragDismissExitFrame] = useState<AnimationFrameRect | null>(null)
   const [entrySuppressedPhotoId] = useState(() => (disableEntryTransition ? (photos[currentIndex]?.id ?? null) : null))
+  const [regionAccentColor, setRegionAccentColor] = useState(siteConfig.accentColor)
 
   const currentPhoto = photos[currentIndex]
   const [showAllRegions, setShowAllRegions] = useState(false)
   const hasRegions = Boolean(currentPhoto?.regions?.length)
+  const regionAccentSource = siteConfig.viewer?.regions?.accentSource ?? 'system'
   const {
     containerRef,
     entryTransition,
@@ -102,13 +105,13 @@ export const PhotoViewer = ({
     triggerElement,
     currentItem: currentPhoto
       ? {
-        id: currentPhoto.id,
-        width: currentPhoto.width,
-        height: currentPhoto.height,
-        previewSrc: currentPhoto.thumbnailUrl,
-        fullSrc: currentPhoto.originalUrl,
-        thumbHash: currentPhoto.thumbHash,
-      }
+          id: currentPhoto.id,
+          width: currentPhoto.width,
+          height: currentPhoto.height,
+          previewSrc: currentPhoto.thumbnailUrl,
+          fullSrc: currentPhoto.originalUrl,
+          thumbHash: currentPhoto.thumbHash,
+        }
       : undefined,
     currentDisplaySrc: currentBlobSrc,
     isMobile,
@@ -181,6 +184,37 @@ export const PhotoViewer = ({
       setDragDismissExitFrame(null)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (regionAccentSource !== 'photo' || !currentPhoto) {
+      setRegionAccentColor(siteConfig.accentColor)
+      return
+    }
+
+    let isCancelled = false
+
+    ;(async () => {
+      try {
+        const color = await deriveAccentFromSources({
+          thumbHash: currentPhoto.thumbHash,
+          thumbnailUrl: currentPhoto.thumbnailUrl,
+        })
+
+        if (!isCancelled) {
+          setRegionAccentColor(color ?? siteConfig.accentColor)
+        }
+      }
+      catch {
+        if (!isCancelled) {
+          setRegionAccentColor(siteConfig.accentColor)
+        }
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [currentPhoto, regionAccentSource])
 
   useEffect(() => {
     if (!isOpen) {
@@ -382,14 +416,14 @@ export const PhotoViewer = ({
                   style={
                     isMobile
                       ? {
-                        x: dismissX,
-                        y: viewerLiftY,
-                        scale: viewerScale,
-                        rotate: viewerRotate,
-                        borderRadius: viewerBorderRadius,
-                        transformOrigin: DEFAULT_MOBILE_VIEWER_MEDIA_TRANSFORM_ORIGIN,
-                        touchAction: 'none',
-                      }
+                          x: dismissX,
+                          y: viewerLiftY,
+                          scale: viewerScale,
+                          rotate: viewerRotate,
+                          borderRadius: viewerBorderRadius,
+                          transformOrigin: DEFAULT_MOBILE_VIEWER_MEDIA_TRANSFORM_ORIGIN,
+                          touchAction: 'none',
+                        }
                       : undefined
                   }
                 >
@@ -428,8 +462,16 @@ export const PhotoViewer = ({
                           <button
                             type="button"
                             disabled={!isMobileChromeInteractive}
-                            className={`bg-material-ultra-thick ${mobileChromeButtonClassName} flex size-8 items-center justify-center rounded-full text-white backdrop-blur-2xl duration-200 hover:bg-black/40 disabled:cursor-default ${showAllRegions ? 'bg-accent/80 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_10px_30px_rgba(0,0,0,0.24)]' : ''}`}
-                            onClick={() => setShowAllRegions((visible) => !visible)}
+                            style={{ '--color-accent': regionAccentColor } as React.CSSProperties}
+                            className={clsxm(
+                              isMobile
+                                ? 'bg-material-ultra-thick flex size-8 items-center justify-center rounded-full border border-white/10 text-white/90 backdrop-blur-2xl duration-200 hover:border-white/15 hover:bg-black/40 disabled:cursor-default'
+                                : 'bg-material-thick flex h-8 items-center justify-center gap-1.5 rounded-full border border-white/10 px-3 text-white/90 backdrop-blur-2xl duration-200 hover:border-white/15 hover:bg-black/40 disabled:cursor-default',
+                              mobileChromeButtonClassName,
+                              showAllRegions
+                              && 'border-accent/20 bg-accent/5 text-white shadow-[0_8px_32px_color-mix(in_srgb,var(--color-accent)_10%,transparent),0_4px_18px_rgba(0,0,0,0.18)]',
+                            )}
+                            onClick={() => setShowAllRegions(visible => !visible)}
                             title={showAllRegions ? t('photo.regions.hide') : t('photo.regions.show')}
                             aria-pressed={showAllRegions}
                           >
@@ -438,6 +480,11 @@ export const PhotoViewer = ({
                               <span className="absolute top-[2px] left-[2px] h-[3px] w-[3px] rounded-full bg-current/90" />
                               <span className="absolute right-[2px] bottom-[2px] h-[3px] w-[3px] rounded-full bg-current/60" />
                             </span>
+                            {!isMobile && (
+                              <span className="text-[11px] font-medium tabular-nums text-white/82">
+                                {currentPhoto.regions.length}
+                              </span>
+                            )}
                           </button>
                         )}
 
@@ -539,7 +586,7 @@ export const PhotoViewer = ({
                             })
                             const suppressSlideEntry
                               = (isCurrentImage && entryTransition?.variant === 'entry')
-                              || photo.id === entrySuppressedPhotoId
+                                || photo.id === entrySuppressedPhotoId
                             return (
                               <SwiperSlide
                                 key={photo.id}
@@ -577,22 +624,23 @@ export const PhotoViewer = ({
                                     videoSource={
                                       photo.video?.type === 'motion-photo'
                                         ? {
-                                          type: 'motion-photo',
-                                          imageUrl: photo.originalUrl,
-                                          offset: photo.video.offset,
-                                          size: photo.video.size,
-                                          presentationTimestamp: photo.video.presentationTimestamp,
-                                        }
+                                            type: 'motion-photo',
+                                            imageUrl: photo.originalUrl,
+                                            offset: photo.video.offset,
+                                            size: photo.video.size,
+                                            presentationTimestamp: photo.video.presentationTimestamp,
+                                          }
                                         : photo.video?.type === 'live-photo'
                                           ? {
-                                            type: 'live-photo',
-                                            videoUrl: photo.video.videoUrl,
-                                          }
+                                              type: 'live-photo',
+                                              videoUrl: photo.video.videoUrl,
+                                            }
                                           : { type: 'none' }
                                     }
                                     shouldAutoPlayVideoOnce={isCurrentImage}
                                     regions={photo.regions}
                                     regionOrientation={photo.exif?.Orientation}
+                                    regionAccentColor={regionAccentColor}
                                     showAllRegions={isCurrentImage ? showAllRegions : false}
                                     enableRegionHover={isCurrentImage && !isMobile}
                                     isHDR={photo.isHDR}

@@ -1,5 +1,6 @@
 import type { PhotoRegion } from '@afilmory/builder'
 import { clsxm } from '@afilmory/utils'
+import type { CSSProperties } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 interface PhotoRegionsOverlayProps {
@@ -7,6 +8,7 @@ interface PhotoRegionsOverlayProps {
   photoWidth?: number
   photoHeight?: number
   orientation?: number
+  accentColor?: string
   showAllBoxes?: boolean
   interactive?: boolean
 }
@@ -31,6 +33,7 @@ export const PhotoRegionsOverlay = ({
   photoWidth,
   photoHeight,
   orientation,
+  accentColor,
   showAllBoxes = false,
   interactive = true,
 }: PhotoRegionsOverlayProps) => {
@@ -63,10 +66,18 @@ export const PhotoRegionsOverlay = ({
     return null
   }
 
+  const accentStyle = accentColor ? ({ '--color-accent': accentColor } as CSSProperties) : undefined
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-15" onMouseLeave={() => setHoveredRegionId(null)}>
+    <div
+      className="pointer-events-none absolute inset-0 z-20"
+      style={accentStyle}
+      onMouseLeave={() => setHoveredRegionId(null)}
+    >
       {regionViews.map((region) => {
         const isHovered = hoveredRegionId === region.id
+        const isActive = isHovered
+        const isMuted = showAllBoxes && !isActive
         const showBox = showAllBoxes || isHovered
         const showLabel = showAllBoxes || isHovered
         const regionCenterX = region.bounds.left + region.bounds.width / 2
@@ -92,7 +103,7 @@ export const PhotoRegionsOverlay = ({
                 onPointerEnter={() => setHoveredRegionId(region.id)}
                 onPointerLeave={() => {
                   if (!showAllBoxes) {
-                    setHoveredRegionId((current) => (current === region.id ? null : current))
+                    setHoveredRegionId(current => (current === region.id ? null : current))
                   }
                 }}
               />
@@ -100,23 +111,27 @@ export const PhotoRegionsOverlay = ({
 
             <div
               className={clsxm(
-                'pointer-events-none absolute inset-0 rounded-[18px] transition-all duration-200 ease-out',
-                showBox ? 'opacity-100' : 'opacity-0',
+                'pointer-events-none absolute inset-0 transition-opacity duration-200 ease-out',
+                showBox ? (isMuted ? 'opacity-40' : 'opacity-100') : 'opacity-0',
               )}
             >
               <div
-                className="absolute inset-0 rounded-[18px] border-[2.5px]"
+                className={clsxm(
+                  'absolute inset-0 border bg-transparent',
+                  isActive ? 'border-accent/100' : 'border-white/95',
+                )}
                 style={{
-                  borderColor: 'color-mix(in srgb, var(--color-accent) 82%, white 18%)',
-                  boxShadow:
-                    '0 0 0 1px color-mix(in srgb, var(--color-accent) 24%, transparent), 0 0 20px color-mix(in srgb, var(--color-accent) 34%, transparent)',
+                  borderWidth: '1.5px',
+                  boxShadow: isActive
+                    ? '0 0 0 1px rgb(0 0 0 / 0.5), 0 0 18px color-mix(in srgb, var(--color-accent) 45%, transparent)'
+                    : '0 0 0 1px rgb(0 0 0 / 0.45), inset 0 0 0 1px rgb(0 0 0 / 0.25)',
                 }}
               />
             </div>
 
             <div
               className={clsxm(
-                'pointer-events-none absolute z-10 max-w-[min(16rem,58vw)] transition-all duration-200 ease-out',
+                'pointer-events-none absolute z-30 max-w-[min(18rem,62vw)] transition-all duration-200 ease-out',
                 labelAnchor === 'left' ? 'left-0' : labelAnchor === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2',
                 verticalPlacement === 'below'
                   ? 'top-full mt-2'
@@ -136,8 +151,18 @@ export const PhotoRegionsOverlay = ({
                       : 'translate-y-1 opacity-0',
               )}
             >
-              <div className="bg-material-ultra-thick rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white shadow-[0_10px_28px_rgba(0,0,0,0.24)] backdrop-blur-2xl">
-                <span className="block truncate">{region.name}</span>
+              <div
+                className={clsxm(
+                  'bg-material-ultra-thick rounded-full border px-3 py-1.5 text-xs font-medium text-white shadow-context-menu backdrop-blur-2xl transition-[background-color,border-color,opacity] duration-200 ease-out',
+                  isActive ? 'border-accent/20' : 'border-white/12',
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className={clsxm('block size-1.5 shrink-0 rounded-full', isActive ? 'bg-accent' : 'bg-white/55')}
+                  />
+                  <span className="block truncate text-white/92">{region.name}</span>
+                </span>
               </div>
             </div>
           </div>
@@ -158,8 +183,8 @@ function getRegionBounds(
     return null
   }
 
-  const rawBounds =
-    area.unit.toLowerCase() === 'normalized'
+  const rawBounds
+    = area.unit.toLowerCase() === 'normalized'
       ? normalizeBounds({
           left: area.x - area.width / 2,
           top: area.y - area.height / 2,
