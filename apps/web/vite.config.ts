@@ -176,6 +176,7 @@ const BUILD_FOR_SERVER_SERVE = process.env.BUILD_FOR_SERVER_SERVE === '1'
 export default defineConfig(() => {
   return {
     base: BUILD_FOR_SERVER_SERVE ? '/static/web/' : '/',
+    assetsInclude: ['**/*.wasm'],
     build: {
       rollupOptions: BUILD_FOR_SERVER_SERVE
         ? {

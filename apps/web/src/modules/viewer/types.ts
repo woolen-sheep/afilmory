@@ -48,8 +48,10 @@ export interface ProgressiveImageProps {
   regions?: PhotoRegion[]
   regionOrientation?: number
   regionAccentColor?: string
+  activeRegionId?: string | null
   showAllRegions?: boolean
   enableRegionHover?: boolean
+  onActiveRegionChange?: (regionId: string | null) => void
 
   // HDR 相关 props
   isHDR?: boolean

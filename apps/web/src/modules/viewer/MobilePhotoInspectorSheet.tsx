@@ -2,7 +2,8 @@ import type { PickedExif } from '@afilmory/builder'
 import { MobileTabGroup, MobileTabItem } from '@afilmory/ui'
 import { createInspectorSheetPresentation, resolveInspectorSheetHeight } from '@afilmory/viewer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { m, type MotionValue, useTransform } from 'motion/react'
+import type { MotionValue } from 'motion/react'
+import { m, useTransform } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -19,25 +20,29 @@ interface MobilePhotoInspectorSheetProps {
   createPresentation?: typeof createInspectorSheetPresentation
   currentPhoto: PhotoManifest
   exifData: PickedExif | null
+  activeRegionId?: string | null
   isInteractive: boolean
   progress: MotionValue<number>
   resolveHeight?: typeof resolveInspectorSheetHeight
   onClose: () => void
+  onActiveRegionChange?: (regionId: string | null) => void
 }
 
 export const MobilePhotoInspectorSheet = ({
   createPresentation = createInspectorSheetPresentation,
   currentPhoto,
   exifData,
+  activeRegionId,
   isInteractive,
   progress,
   resolveHeight = resolveInspectorSheetHeight,
   onClose,
+  onActiveRegionChange,
 }: MobilePhotoInspectorSheetProps) => {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<Tab>('info')
   const sheetRef = useRef<HTMLDivElement>(null)
-  const viewportHeight = useViewport((value) => value.h) || (typeof window !== 'undefined' ? window.innerHeight : 844)
+  const viewportHeight = useViewport(value => value.h) || (typeof window !== 'undefined' ? window.innerHeight : 844)
   const sheetHeight = useMemo(() => resolveHeight(viewportHeight), [resolveHeight, viewportHeight])
 
   const showSocialFeatures = injectConfig.useCloud
@@ -110,40 +115,38 @@ export const MobilePhotoInspectorSheet = ({
             <div className="h-1.5 w-11 rounded-full bg-white/20" />
           </div>
 
-          <div className="relative">
-            {showSocialFeatures ? (
-              <MobileTabGroup
-                value={activeTab}
-                onValueChanged={(value) => setActiveTab(value as Tab)}
-                className="mr-12"
-              >
-                <MobileTabItem
-                  value="info"
-                  label={
-                    <div className="flex items-center">
-                      <i className="i-mingcute-information-line mr-1.5 text-base" />
-                      {t('inspector.tab.info')}
-                    </div>
-                  }
-                />
-                <MobileTabItem
-                  value="comments"
-                  label={
-                    <div className="flex items-center">
-                      <i className="i-mingcute-comment-line mr-1.5 text-base" />
-                      {t('inspector.tab.comments')}
-                      {hasComments && <div className="bg-accent ml-1.5 size-1.5 rounded-full" />}
-                    </div>
-                  }
-                />
-              </MobileTabGroup>
-            ) : (
-              <div className="px-2 pb-1 text-sm font-medium text-white/70">{t('exif.header.title')}</div>
-            )}
+          <div className="flex items-center gap-2 pb-1">
+            <div className="min-w-0 flex-1">
+              {showSocialFeatures ? (
+                <MobileTabGroup value={activeTab} onValueChanged={value => setActiveTab(value as Tab)}>
+                  <MobileTabItem
+                    value="info"
+                    label={(
+                      <div className="flex items-center">
+                        <i className="i-mingcute-information-line mr-1.5 text-base" />
+                        {t('inspector.tab.info')}
+                      </div>
+                    )}
+                  />
+                  <MobileTabItem
+                    value="comments"
+                    label={(
+                      <div className="flex items-center">
+                        <i className="i-mingcute-comment-line mr-1.5 text-base" />
+                        {t('inspector.tab.comments')}
+                        {hasComments && <div className="bg-accent ml-1.5 size-1.5 rounded-full" />}
+                      </div>
+                    )}
+                  />
+                </MobileTabGroup>
+              ) : (
+                <div className="text-base font-semibold text-white">{t('exif.header.title')}</div>
+              )}
+            </div>
 
             <button
               type="button"
-              className="hover:bg-accent/10 absolute top-1 right-0 flex size-9 items-center justify-center rounded-xl text-white/80 transition-colors hover:text-white"
+              className="hover:bg-accent/10 flex size-9 shrink-0 items-center justify-center rounded-xl text-white/80 transition-colors hover:text-white"
               onClick={handleClose}
               aria-label="Close details"
             >
@@ -157,6 +160,8 @@ export const MobilePhotoInspectorSheet = ({
             <ExifPanelContent
               currentPhoto={currentPhoto}
               exifData={exifData}
+              activeRegionId={activeRegionId}
+              onActiveRegionChange={onActiveRegionChange}
               rootClassName="min-h-0 flex-1"
               viewportClassName="px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] **:select-text"
             />

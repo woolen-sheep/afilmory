@@ -56,8 +56,10 @@ export const ProgressiveImage = ({
   regions = [],
   regionOrientation,
   regionAccentColor,
+  activeRegionId,
   showAllRegions = false,
   enableRegionHover = true,
+  onActiveRegionChange,
   isHDR = false,
   loadingIndicatorRef,
 }: ProgressiveImageProps) => {
@@ -364,8 +366,10 @@ export const ProgressiveImage = ({
               photoHeight={height}
               orientation={regionOrientation}
               accentColor={regionAccentColor}
+              activeRegionId={activeRegionId}
               showAllBoxes={showAllRegions}
               interactive={enableRegionHover}
+              onActiveRegionChange={onActiveRegionChange}
             />
           )}
         </ContainedImageFrame>
@@ -415,8 +419,10 @@ export const ProgressiveImage = ({
                   photoHeight={height}
                   orientation={regionOrientation}
                   accentColor={regionAccentColor}
+                  activeRegionId={activeRegionId}
                   showAllBoxes={showAllRegions}
                   interactive={enableRegionHover}
+                  onActiveRegionChange={onActiveRegionChange}
                 />
               )}
             </DOMImageViewer>
@@ -469,8 +475,10 @@ export const ProgressiveImage = ({
                       photoHeight={height}
                       orientation={regionOrientation}
                       accentColor={regionAccentColor}
+                      activeRegionId={activeRegionId}
                       showAllBoxes={showAllRegions}
                       interactive={enableRegionHover}
+                      onActiveRegionChange={onActiveRegionChange}
                     />
                   </div>
                 </div>

@@ -22,6 +22,7 @@
     "web": "vite"
   },
   "dependencies": {
+    "@6over3/zeroperl-ts": "1.0.10",
     "@afilmory/data": "workspace:*",
     "@afilmory/hooks": "workspace:*",
     "@afilmory/sdk": "workspace:*",

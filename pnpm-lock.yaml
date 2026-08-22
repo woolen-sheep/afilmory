@@ -483,6 +483,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@6over3/zeroperl-ts':
+        specifier: 1.0.10
+        version: 1.0.10
       '@afilmory/data':
         specifier: workspace:*
         version: link:../../packages/data
