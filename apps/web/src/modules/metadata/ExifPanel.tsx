@@ -137,6 +137,7 @@ export const ExifPanelContent: FC<ExifPanelContentProps> = ({
         currentPhoto.width,
         currentPhoto.height,
         currentPhoto.exif?.Orientation,
+        currentPhoto.exif?.RegionInfo,
       ),
     [currentPhoto],
   )

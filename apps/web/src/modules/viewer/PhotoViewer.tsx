@@ -94,6 +94,7 @@ export const PhotoViewer = ({
             currentPhoto.width,
             currentPhoto.height,
             currentPhoto.exif?.Orientation,
+            currentPhoto.exif?.RegionInfo,
           )
         : [],
     [currentPhoto],
@@ -645,7 +646,13 @@ export const PhotoViewer = ({
                                           : { type: 'none' }
                                     }
                                     shouldAutoPlayVideoOnce={isCurrentImage}
-                                    regions={isCurrentImage ? currentRegions : photo.regions}
+                                    regions={getRenderablePhotoRegions(
+                                      photo.regions,
+                                      photo.width,
+                                      photo.height,
+                                      photo.exif?.Orientation,
+                                      photo.exif?.RegionInfo,
+                                    )}
                                     regionOrientation={photo.exif?.Orientation}
                                     regionAccentColor={regionAccentColor}
                                     activeRegionId={isCurrentImage ? activeRegionId : null}

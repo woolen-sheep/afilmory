@@ -1,7 +1,16 @@
+import type { Buffer } from 'node:buffer'
 import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import process from 'node:process'
 
-import type { ExiftoolXmpArea, ExiftoolXmpDimensions, ExiftoolXmpRegionInfo, PhotoRegion, PhotoXmpMetadata, PickedExif } from '@afilmory/typing'
+import type {
+  ExiftoolXmpArea,
+  ExiftoolXmpDimensions,
+  ExiftoolXmpRegionInfo,
+  PhotoRegion,
+  PhotoXmpMetadata,
+  PickedExif,
+} from '@afilmory/typing'
 import { isNil, noop } from 'es-toolkit'
 import type { ExifDateTime, Tags } from 'exiftool-vendored'
 import { ExifTool } from 'exiftool-vendored'
@@ -60,10 +69,12 @@ export async function extractExifData(imageBuffer: Buffer, originalBuffer?: Buff
 
     log.success('EXIF 数据提取完成')
     return result
-  } catch (error) {
+  }
+  catch (error) {
     log.error('提取 EXIF 数据失败:', error)
     return null
-  } finally {
+  }
+  finally {
     await unlink(tempImagePath).catch(noop)
   }
 }
@@ -246,24 +257,22 @@ function parseRegionInfo(regionInfo: ExiftoolXmpRegionInfo | undefined): PhotoRe
 
   const appliedToDimensions = parseAppliedToDimensions(regionInfo.AppliedToDimensions)
 
-  return regionInfo.RegionList
-    .map((region) => {
-      const name = typeof region.Name === 'string' ? region.Name.trim() : ''
-      const type = normalizeRegionType(region.Type)
-      const area = parseRegionArea(region.Area)
+  return regionInfo.RegionList.map((region) => {
+    const name = typeof region.Name === 'string' ? region.Name.trim() : ''
+    const type = normalizeRegionType(region.Type)
+    const area = parseRegionArea(region.Area)
 
-      if (!name && !type && !area) {
-        return null
-      }
+    if (!name && !type && !area) {
+      return null
+    }
 
-      return {
-        name,
-        ...(type ? { type } : {}),
-        area,
-        appliedToDimensions,
-      } satisfies PhotoRegion
-    })
-    .filter((region): region is PhotoRegion => region !== null)
+    return {
+      name,
+      ...(type ? { type } : {}),
+      area,
+      appliedToDimensions,
+    } satisfies PhotoRegion
+  }).filter((region): region is PhotoRegion => region !== null)
 }
 
 function parseAppliedToDimensions(dimensions: ExiftoolXmpDimensions | undefined) {
@@ -279,11 +288,12 @@ function parseAppliedToDimensions(dimensions: ExiftoolXmpDimensions | undefined)
 }
 
 function parseRegionArea(area: ExiftoolXmpArea | undefined) {
-  if (!area?.Unit) {
-    return null
-  }
-
-  if (typeof area.X !== 'number' || typeof area.Y !== 'number' || typeof area.W !== 'number' || typeof area.H !== 'number') {
+  if (
+    typeof area?.X !== 'number'
+    || typeof area.Y !== 'number'
+    || typeof area.W !== 'number'
+    || typeof area.H !== 'number'
+  ) {
     return null
   }
 
@@ -292,7 +302,7 @@ function parseRegionArea(area: ExiftoolXmpArea | undefined) {
     y: area.Y,
     width: area.W,
     height: area.H,
-    unit: area.Unit,
+    unit: area.Unit ?? 'normalized',
   }
 }
 
@@ -311,7 +321,7 @@ function normalizeStringArray(input: string[] | undefined): string[] {
     return []
   }
 
-  return input.map((value) => value.trim()).filter(Boolean)
+  return input.map(value => value.trim()).filter(Boolean)
 }
 
 function mergeUniqueStrings(...groups: string[][]): string[] {
