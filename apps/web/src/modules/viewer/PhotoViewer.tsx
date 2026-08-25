@@ -101,6 +101,7 @@ export const PhotoViewer = ({
   )
   const hasRegions = currentRegions.length > 0
   const regionAccentSource = siteConfig.viewer?.regions?.accentSource ?? 'system'
+  const regionLabelPlacement = siteConfig.viewer?.regions?.labelPlacement ?? 'edge'
 
   useEffect(() => {
     setActiveRegionId(null)
@@ -655,6 +656,7 @@ export const PhotoViewer = ({
                                     )}
                                     regionOrientation={photo.exif?.Orientation}
                                     regionAccentColor={regionAccentColor}
+                                    regionLabelPlacement={regionLabelPlacement}
                                     activeRegionId={isCurrentImage ? activeRegionId : null}
                                     showAllRegions={isCurrentImage ? showAllRegions : false}
                                     enableRegionHover={isCurrentImage && canHoverRegions}

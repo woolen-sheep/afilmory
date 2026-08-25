@@ -142,3 +142,7 @@ function normalizeBounds(bounds: PhotoRegionBounds): PhotoRegionBounds | null {
     height,
   }
 }
+
+export function getFloatingLabelPosition(regionTop: number, overlayHeight: number): 'above' | 'below' {
+  return regionTop * overlayHeight < 34 ? 'below' : 'above'
+}

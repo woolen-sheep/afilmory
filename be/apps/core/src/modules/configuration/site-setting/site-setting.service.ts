@@ -65,7 +65,7 @@ export class SiteSettingService {
       return
     }
 
-    const normalizedEntries = entries.map((entry) => ({
+    const normalizedEntries = entries.map(entry => ({
       ...entry,
       value: typeof entry.value === 'string' ? entry.value : String(entry.value),
     })) as readonly SettingEntryInput[]
@@ -85,16 +85,22 @@ export class SiteSettingService {
       author: { ...DEFAULT_SITE_CONFIG.author },
     }
 
-    assignString(values['site.name'], (value) => (config.name = value))
-    assignString(values['site.title'], (value) => (config.title = value))
-    assignString(values['site.description'], (value) => (config.description = value))
-    assignString(values['site.url'], (value) => (config.url = value))
-    assignString(values['site.accentColor'], (value) => (config.accentColor = value))
+    assignString(values['site.name'], value => (config.name = value))
+    assignString(values['site.title'], value => (config.title = value))
+    assignString(values['site.description'], value => (config.description = value))
+    assignString(values['site.url'], value => (config.url = value))
+    assignString(values['site.accentColor'], value => (config.accentColor = value))
+
+    const viewer = buildViewerConfig(values)
+    if (viewer) {
+      config.viewer = viewer
+    }
 
     const resolvedAuthor = await this.resolveAuthorFromTenant(config.name)
     if (resolvedAuthor) {
       config.author = resolvedAuthor
-    } else if (!config.author.name) {
+    }
+    else if (!config.author.name) {
       config.author.name = config.name
     }
 
@@ -113,7 +119,7 @@ export class SiteSettingService {
       config.map = mapProviders
     }
 
-    assignString(values['site.mapStyle'], (value) => (config.mapStyle = value))
+    assignString(values['site.mapStyle'], value => (config.mapStyle = value))
 
     const projection = normalizeMapProjection(values['site.mapProjection'])
     if (projection) {
@@ -181,11 +187,11 @@ export class SiteSettingService {
     }
 
     const fallbackName = normalizeStringToUndefined(siteName) ?? siteName
-    const normalizedName =
-      normalizeStringToUndefined(user.displayUsername) ??
-      normalizeStringToUndefined(user.username) ??
-      normalizeStringToUndefined(user.name) ??
-      fallbackName
+    const normalizedName
+      = normalizeStringToUndefined(user.displayUsername)
+        ?? normalizeStringToUndefined(user.username)
+        ?? normalizeStringToUndefined(user.name)
+        ?? fallbackName
 
     const author: SiteConfigAuthor = {
       name: normalizedName,
@@ -242,7 +248,8 @@ export class SiteSettingService {
         throw new Error('Invalid protocol')
       }
       return url.toString()
-    } catch {
+    }
+    catch {
       throw new BizException(ErrorCode.COMMON_VALIDATION, {
         message: '头像链接必须是以 http(s) 或 // 开头的有效 URL',
       })
@@ -332,6 +339,12 @@ interface SiteConfigFeed {
   }
 }
 
+interface SiteConfigViewer {
+  regions?: {
+    labelPlacement?: 'edge' | 'above' | 'floating'
+  }
+}
+
 type SiteConfigMapProviders = string[]
 
 type SiteConfigProjection = 'globe' | 'mercator'
@@ -343,6 +356,7 @@ interface SiteConfig {
   url: string
   accentColor: string
   author: SiteConfigAuthor
+  viewer?: SiteConfigViewer
   social?: SiteConfigSocial
   feed?: SiteConfigFeed
   map?: SiteConfigMapProviders
@@ -390,9 +404,10 @@ function parseJsonStringArray(value: string | null | undefined): string[] | unde
       return undefined
     }
 
-    const result = parsed.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim())
+    const result = parsed.filter((entry): entry is string => typeof entry === 'string').map(entry => entry.trim())
     return result.length > 0 ? result : undefined
-  } catch {
+  }
+  catch {
     return undefined
   }
 }
@@ -440,4 +455,14 @@ function normalizeMapProjection(value: string | null | undefined): SiteConfig['m
   }
 
   return undefined
+}
+
+function buildViewerConfig(values: SiteSettingValueMap): SiteConfigViewer | undefined {
+  const labelPlacement = normalizeRegionLabelPlacement(values['site.viewer.regions.labelPlacement'])
+  return labelPlacement ? { regions: { labelPlacement } } : undefined
+}
+
+function normalizeRegionLabelPlacement(value: string | null | undefined): 'edge' | 'floating' | undefined {
+  const normalized = normalizeStringToUndefined(value)
+  return normalized === 'edge' || normalized === 'floating' ? normalized : undefined
 }

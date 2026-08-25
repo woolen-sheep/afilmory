@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { PhotoRegion } from '@afilmory/builder'
 import { it } from 'vitest'
 
-import { getRenderablePhotoRegions } from './photo-region-bounds'
+import { getFloatingLabelPosition, getRenderablePhotoRegions } from './photo-region-bounds'
 
 it('getRenderablePhotoRegions excludes metadata-only and zero-area regions from viewer controls', () => {
   const regions: PhotoRegion[] = [
@@ -70,4 +70,9 @@ it('getRenderablePhotoRegions restores missing area data from XMP metadata', () 
       },
     ],
   )
+})
+
+it('places floating labels below regions near the overlay top edge', () => {
+  assert.equal(getFloatingLabelPosition(0.02, 1000), 'below')
+  assert.equal(getFloatingLabelPosition(0.1, 1000), 'above')
 })

@@ -6,7 +6,8 @@
   "accentColor": "#007bff",
   "viewer": {
     "regions": {
-      "accentSource": "system"
+      "accentSource": "system",
+      "labelPlacement": "edge"
     }
   },
   "author": {

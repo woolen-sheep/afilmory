@@ -173,6 +173,17 @@ const enUiSchema = {
           },
         },
       },
+      viewer: {
+        title: 'Viewer regions',
+        description: 'Control how labels are positioned for regions detected in a photo.',
+        fields: {
+          'region-label-placement': {
+            title: 'Region label placement',
+            description:
+              'Edge keeps the label attached to the region corner; Floating centers it above the region and moves it below when needed.',
+          },
+        },
+      },
       map: {
         title: 'Map display',
         description: 'Configure providers, style, and projection for the map component.',

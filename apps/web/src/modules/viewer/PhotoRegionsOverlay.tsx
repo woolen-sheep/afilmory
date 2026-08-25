@@ -1,10 +1,10 @@
 import type { PhotoRegion } from '@afilmory/builder'
 import { clsxm } from '@afilmory/utils'
 import type { CSSProperties } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { PhotoRegionBounds } from './photo-region-bounds'
-import { getPhotoRegionBounds } from './photo-region-bounds'
+import { getFloatingLabelPosition, getPhotoRegionBounds } from './photo-region-bounds'
 import { getPhotoRegionIcon, getPhotoRegionId } from './photo-region-display'
 
 interface PhotoRegionsOverlayProps {
@@ -13,6 +13,7 @@ interface PhotoRegionsOverlayProps {
   photoHeight?: number
   orientation?: number
   accentColor?: string
+  labelPlacement?: 'edge' | 'floating'
   activeRegionId?: string | null
   showAllBoxes?: boolean
   interactive?: boolean
@@ -32,19 +33,27 @@ export const PhotoRegionsOverlay = ({
   photoHeight,
   orientation,
   accentColor,
+  labelPlacement = 'edge',
   activeRegionId,
   showAllBoxes = false,
   interactive = true,
   onActiveRegionChange,
 }: PhotoRegionsOverlayProps) => {
   const [localActiveRegionId, setLocalActiveRegionId] = useState<string | null>(null)
+  const [overlayHeight, setOverlayHeight] = useState(0)
+  const overlayRef = useRef<HTMLDivElement>(null)
   const resolvedActiveRegionId = activeRegionId === undefined ? localActiveRegionId : activeRegionId
 
   useEffect(() => {
-    if (!interactive) {
-      setLocalActiveRegionId(null)
+    const overlay = overlayRef.current
+    if (!overlay) {
+      return
     }
-  }, [interactive])
+
+    const observer = new ResizeObserver(entries => setOverlayHeight(entries[0]?.contentRect.height ?? 0))
+    observer.observe(overlay)
+    return () => observer.disconnect()
+  }, [])
 
   const setActiveRegion = (regionId: string | null) => {
     if (activeRegionId === undefined) {
@@ -90,7 +99,7 @@ export const PhotoRegionsOverlay = ({
   const accentStyle = accentColor ? ({ '--color-accent': accentColor } as CSSProperties) : undefined
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20" style={accentStyle}>
+    <div ref={overlayRef} className="pointer-events-none absolute inset-0 z-20" style={accentStyle}>
       {regionViews.map((region) => {
         const isActive = resolvedActiveRegionId === region.id
         const isMuted = showAllBoxes && hasActiveRegion && !isActive
@@ -98,6 +107,8 @@ export const PhotoRegionsOverlay = ({
         const showLabel = showAllBoxes || isActive
         const primaryLabel = region.name || region.type
         const secondaryLabel = region.name ? region.type : undefined
+        const isFloatingLabelBelow
+          = labelPlacement === 'floating' && getFloatingLabelPosition(region.bounds.top, overlayHeight) === 'below'
 
         return (
           <div
@@ -137,7 +148,12 @@ export const PhotoRegionsOverlay = ({
             {primaryLabel && (
               <div
                 className={clsxm(
-                  'pointer-events-none absolute top-0 left-0 z-30 max-w-[min(22rem,80vw)] -translate-y-1/2 transition-opacity duration-200',
+                  'pointer-events-none absolute z-30 max-w-[min(22rem,80vw)] transition-opacity duration-200',
+                  labelPlacement === 'floating'
+                    ? isFloatingLabelBelow
+                      ? 'top-full left-1/2 -translate-x-1/2 translate-y-1.5'
+                      : 'top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+0.375rem)]'
+                    : 'top-0 left-0 -translate-y-1/2',
                   showLabel ? (isMuted ? 'opacity-45' : 'opacity-100') : 'opacity-0',
                 )}
               >

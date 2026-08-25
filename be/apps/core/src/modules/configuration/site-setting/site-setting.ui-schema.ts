@@ -182,6 +182,28 @@ export function createSiteSettingUiSchema(t: UiSchemaTFunction): UiSchema<SiteSe
       },
       {
         type: 'section',
+        id: 'site-viewer',
+        title: t('site.sections.viewer.title'),
+        description: t('site.sections.viewer.description'),
+        icon: 'scan',
+        children: [
+          {
+            type: 'field',
+            id: 'site-viewer-region-label-placement',
+            title: t('site.sections.viewer.fields.region-label-placement.title'),
+            description: t('site.sections.viewer.fields.region-label-placement.description'),
+            key: 'site.viewer.regions.labelPlacement',
+            component: {
+              type: 'select',
+              options: ['edge', 'floating'],
+              presentation: 'segmented',
+            },
+            icon: 'tag',
+          },
+        ],
+      },
+      {
+        type: 'section',
         id: 'site-map',
         title: t('site.sections.map.title'),
         description: t('site.sections.map.description'),

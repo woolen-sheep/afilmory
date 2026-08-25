@@ -172,6 +172,16 @@ const zhCnUiSchema = {
           },
         },
       },
+      viewer: {
+        title: '查看器区域',
+        description: '控制照片中标记区域的标签位置。',
+        fields: {
+          'region-label-placement': {
+            title: '区域标签位置',
+            description: '边缘会将标签固定在区域角落；悬浮会将标签居中显示在区域上方，空间不足时移至下方。',
+          },
+        },
+      },
       map: {
         title: '地图展示',
         description: '配置地图组件可用的提供商、样式与投影。',

@@ -82,6 +82,7 @@ interface Social {
 interface ViewerConfig {
   regions?: {
     accentSource?: 'system' | 'photo'
+    labelPlacement?: 'edge' | 'floating'
   }
 }
 
@@ -94,6 +95,7 @@ const defaultConfig: SiteConfig = {
   viewer: {
     regions: {
       accentSource: 'system',
+      labelPlacement: 'edge',
     },
   },
   author: {
